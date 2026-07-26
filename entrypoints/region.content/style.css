@@ -1,0 +1,30 @@
+@import "../shared/styles/globals.css";
+
+:host,
+html,
+body {
+  background: transparent !important;
+}
+
+:host {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
+#rio-region-root,
+#rio-recording-panel-root {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+}
+
+#rio-region-root {
+  pointer-events: auto;
+}
+
+#rio-recording-panel-root {
+  pointer-events: none;
+}
