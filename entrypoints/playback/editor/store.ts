@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureSettings, MediaTransform, ShadowStyle, TextClip, TimelineMediaItem, TimelineSelection } from './types';
+import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureDataSource, GestureSettings, MediaTransform, ShadowStyle, TextClip, TimelineMediaItem, TimelineSelection } from './types';
 import { CANVAS_SIZES, createInitialSettings } from './types';
 
 interface EditorStore extends EditorSettings {
   selectedTimelineItem?: TimelineSelection;
   selectedTimelineItems: TimelineSelection[];
+  gestureSources: GestureDataSource[];
   initialize: (durationMs: number, saved?: EditorSettings) => void;
   setFrameStyle: (frameStyle: FrameStyle) => void;
   setBorderShape: (borderShape: BorderShape) => void;
@@ -24,6 +25,7 @@ interface EditorStore extends EditorSettings {
   setClips: (clips: EditorClip[] | ((current: EditorClip[]) => EditorClip[])) => void;
   setTimelineMedia: (timelineMedia: TimelineMediaItem[] | ((current: TimelineMediaItem[]) => TimelineMediaItem[])) => void;
   setGestureClips: (gestureClips: GestureClip[] | ((current: GestureClip[]) => GestureClip[])) => void;
+  setGestureSources: (sources: GestureDataSource[]) => void;
   setTextClips: (textClips: TextClip[] | ((current: TextClip[]) => TextClip[])) => void;
   updateTextClip: (id: string, patch: Partial<TextClip>) => void;
   updateGestureClip: (id: string, patch: Partial<Omit<GestureClip, 'settings'>>) => void;
@@ -41,6 +43,7 @@ const initial = createInitialSettings(100);
 export const useEditorStore = create<EditorStore>((set) => ({
   ...initial,
   selectedTimelineItems: initial.clips[0] ? [{ kind: 'recording', id: initial.clips[0].id }] : [],
+  gestureSources: [],
   initialize: (durationMs, saved) => {
     const fallback = createInitialSettings(durationMs);
     const settings = saved
@@ -54,7 +57,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
         }
       : fallback;
     const selection = settings.clips[0] ? { kind: 'recording' as const, id: settings.clips[0].id } : undefined;
-    set({ ...settings, selectedTimelineItem: selection, selectedTimelineItems: selection ? [selection] : [] });
+    set((state) => ({ ...settings, gestureSources: state.gestureSources, selectedTimelineItem: selection, selectedTimelineItems: selection ? [selection] : [] }));
   },
   setFrameStyle: (frameStyle) => set({ frameStyle }),
   setBorderShape: (borderShape) => set({ borderShape }),
@@ -77,6 +80,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setClips: (next) => set((state) => ({ clips: typeof next === 'function' ? next(state.clips) : next })),
   setTimelineMedia: (next) => set((state) => ({ timelineMedia: typeof next === 'function' ? next(state.timelineMedia) : next })),
   setGestureClips: (next) => set((state) => ({ gestureClips: typeof next === 'function' ? next(state.gestureClips) : next })),
+  setGestureSources: (gestureSources) => set({ gestureSources }),
   setTextClips: (next) => set((state) => ({ textClips: typeof next === 'function' ? next(state.textClips) : next })),
   updateTextClip: (id, patch) => set((state) => ({
     textClips: state.textClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),

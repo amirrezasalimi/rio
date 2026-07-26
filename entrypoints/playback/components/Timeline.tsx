@@ -18,6 +18,8 @@ import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
 import { TextTimelineLane } from './TextTimelineLane';
+import { TimelineMaxTimeInput } from './TimelineMaxTimeInput';
+import { TimelineRuler } from './TimelineRuler';
 import { TimelineZoomControls } from './TimelineZoomControls';
 
 const MIN_CLIP_MS = 150;
@@ -57,6 +59,7 @@ export function Timeline({
   onUploadMedia,
   onDeleteAsset,
   interactionCount,
+  onDownloadClip,
 }: {
   currentTimeMs: number;
   sourceDurationMs: number;
@@ -65,6 +68,7 @@ export function Timeline({
   onUploadMedia: (files: FileList) => void;
   onDeleteAsset: (assetId: string) => void;
   interactionCount: number;
+  onDownloadClip: (clip: EditorClip) => void;
 }) {
   const clips = useEditorStore((state) => state.clips);
   const setClips = useEditorStore((state) => state.setClips);
@@ -79,6 +83,7 @@ export function Timeline({
   const selectItem = useEditorStore((state) => state.selectTimelineItem);
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
   const [zoom, setZoom] = useState(1);
+  const [preciseRuler, setPreciseRuler] = useState(() => localStorage.getItem('rio.timeline.precise-ruler') === 'true');
   const [lockedDragDurationMs, setLockedDragDurationMs] = useState<number>();
   const [panelHeight, setPanelHeight] = useState(() => {
     const saved = Number(localStorage.getItem('rio.timeline.height'));
@@ -127,8 +132,10 @@ export function Timeline({
     setSelection({ kind: 'text', id: clip.id });
   };
   const addGesture = () => {
-    if (interactionCount === 0 || editedRecordingDurationMs < MIN_CLIP_MS) return;
-    const clip: GestureClip = { id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: editedRecordingDurationMs, timelineStartMs: 0, settings: createDefaultGestureSettings() };
+    const fallbackSource = interactionCount === 0 ? assets.find((asset) => asset.type === 'video' && asset.interactions?.length) : undefined;
+    const sourceDurationMs = fallbackSource?.gestureDurationMs ?? editedRecordingDurationMs;
+    if (sourceDurationMs < MIN_CLIP_MS) return;
+    const clip: GestureClip = { id: crypto.randomUUID(), sourceAssetId: fallbackSource?.id, sourceStartMs: 0, sourceEndMs: sourceDurationMs, timelineStartMs: 0, settings: createDefaultGestureSettings() };
     setGestureClips((current) => [...current, clip]);
     setSelection({ kind: 'gesture', id: clip.id });
   };
@@ -260,6 +267,7 @@ export function Timeline({
     if ((event.target as HTMLElement).closest('[data-clip]')) return;
     event.preventDefault();
     event.stopPropagation();
+    setSelection(undefined);
     const bounds = contentRef.current?.getBoundingClientRect();
     if (!bounds) return;
 
@@ -330,28 +338,11 @@ export function Timeline({
             onAddOriginal={addOriginal}
             onAddText={addText}
             onSplitClip={split}
-            canAddGesture={interactionCount > 0}
+            canAddGesture={interactionCount > 0 || assets.some((asset) => asset.type === 'video' && asset.interactions?.length)}
           />
-          <label className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2 py-1 text-[9px] font-semibold text-muted">
-            Max time
-            <input
-              aria-label="Timeline maximum time in seconds"
-              type="number"
-              min={Math.max(1, Math.ceil(contentDurationMs / 1_000))}
-              step={1}
-              value={Math.ceil(projectDurationMs / 1_000)}
-              onChange={(event) => {
-                const seconds = event.currentTarget.valueAsNumber;
-                if (!Number.isFinite(seconds)) return;
-                setTimelineLimitMs(
-                  Math.max(contentDurationMs, 1_000, Math.round(seconds * 1_000)),
-                );
-              }}
-              className="w-14 rounded-lg border border-border bg-surface px-2 py-1 text-right font-mono text-[10px] text-ink outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-            />
-            <span>s</span>
-          </label>
+          <TimelineMaxTimeInput valueSeconds={Math.ceil(projectDurationMs / 1_000)} minimumSeconds={Math.max(1, Math.ceil(contentDurationMs / 1_000))} onCommit={(seconds) => setTimelineLimitMs(Math.max(contentDurationMs, 1_000, seconds * 1_000))} />
           <TimelineZoomControls zoom={zoom} min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} onChange={setSafeZoom} />
+          <button type="button" aria-pressed={preciseRuler} title="Show timeline marks every 0.5 seconds" onClick={() => setPreciseRuler((current) => { localStorage.setItem('rio.timeline.precise-ruler', String(!current)); return !current; })} className={`rounded-xl border px-2.5 py-2 text-[9px] font-semibold transition ${preciseRuler ? 'border-primary-300 bg-primary-100 text-primary-800' : 'border-border bg-cream-50 text-muted hover:bg-surface'}`}>0.5s ticks</button>
 
           <div className="flex items-center rounded-xl border border-border bg-cream-50 p-1">
             <button
@@ -395,26 +386,8 @@ export function Timeline({
       </div>
 
       <div ref={viewportRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-border bg-cream-100">
-        <div ref={contentRef} className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}>
-          <div className="sticky top-0 z-40 flex h-6 shrink-0 items-end justify-between border-b border-border/70 bg-cream-100 px-2 pb-1 font-mono text-[8px] text-muted">
-            <span>00:00</span>
-            <span>{timeLabel(timelineDurationMs * 0.25)}</span>
-            <span>{timeLabel(timelineDurationMs * 0.5)}</span>
-            <span>{timeLabel(timelineDurationMs * 0.75)}</span>
-            <span>{timeLabel(timelineDurationMs)}</span>
-            <button
-              type="button"
-              aria-label="Drag timeline playhead"
-              title="Drag playhead"
-              onPointerDown={seekFromPointer}
-              className="group absolute inset-y-0 z-50 w-10 -translate-x-1/2 cursor-ew-resize touch-none"
-              style={{
-                left: `${Math.min(100, (currentTimeMs / timelineDurationMs) * 100)}%`,
-              }}
-            >
-              <span className="pointer-events-none absolute bottom-0 left-1/2 size-4 -translate-x-1/2 translate-y-1/2 rotate-45 rounded-[4px] bg-accent-500 shadow-[0_1px_4px_rgba(24,50,74,.28)] ring-2 ring-white transition-transform group-active:scale-110" />
-            </button>
-          </div>
+        <div ref={contentRef} onPointerDown={seekFromPointer} className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}>
+          <TimelineRuler currentTimeMs={currentTimeMs} timelineDurationMs={timelineDurationMs} preciseTicks={preciseRuler} />
           <div
             aria-hidden="true"
             className="pointer-events-none absolute bottom-0 top-6 z-30 w-8 -translate-x-1/2"
@@ -426,7 +399,6 @@ export function Timeline({
           </div>
           {clips.length > 0 && <div
             ref={trackRef}
-            onPointerDown={seekFromPointer}
             className="relative h-[74px] min-h-[74px] max-h-[74px] shrink-0 cursor-crosshair bg-[linear-gradient(90deg,transparent_0,transparent_calc(25%-1px),var(--color-border)_25%,transparent_calc(25%+1px),transparent_calc(50%-1px),var(--color-border)_50%,transparent_calc(50%+1px),transparent_calc(75%-1px),var(--color-border)_75%,transparent_calc(75%+1px))] p-1.5"
           >
             {clips.map((clip, index) => {
@@ -476,7 +448,7 @@ export function Timeline({
                   <span className="pointer-events-none absolute bottom-2 left-6 font-mono text-[8px] font-semibold text-primary-950">
                     {timeLabel(clipDuration)}
                   </span>
-                  <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
+                  <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDownload={() => onDownloadClip(clip)} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
                 </div>
               );
             })}

@@ -1,7 +1,8 @@
-import { Circle, Crop, Mic, Monitor, PanelsTopLeft, Volume2, AppWindow, type LucideIcon } from 'lucide-react';
+import { Circle, Crop, FilePlus2, Mic, Monitor, PanelsTopLeft, Volume2, AppWindow, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
 import type { CaptureMode, RecordingOptions } from '../shared/recording/types';
+import { createBlankProject } from './blankProject';
 
 const modes: Array<{ id: CaptureMode; title: string; icon: LucideIcon }> = [
   { id: 'browser', title: 'Tab', icon: PanelsTopLeft },
@@ -36,6 +37,19 @@ function App() {
   });
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string>();
+
+  const openBlankProject = async () => {
+    setOpening(true);
+    setError(undefined);
+    try {
+      const id = await createBlankProject();
+      await browser.tabs.create({ url: browser.runtime.getURL(`/playback.html?id=${id}`) });
+      window.close();
+    } catch (projectError: unknown) {
+      setError(projectError instanceof Error ? projectError.message : 'Could not create a blank project.');
+      setOpening(false);
+    }
+  };
 
   const openRecorder = async () => {
     setOpening(true);
@@ -118,6 +132,7 @@ function App() {
         <Circle className="size-4 fill-current" />
         {opening ? 'Opening picker…' : 'Start recording'}
       </button>
+      <button type="button" onClick={() => void openBlankProject()} disabled={opening} className="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-surface px-5 py-2.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-wait disabled:opacity-60"><FilePlus2 className="size-4" /> Blank project</button>
       {error && (
         <p role="alert" className="relative mt-3 rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-center text-xs font-medium text-danger">
           {error}

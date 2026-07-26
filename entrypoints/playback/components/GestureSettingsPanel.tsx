@@ -42,13 +42,25 @@ export function GestureSettingsPanel() {
   const selectedId = useEditorStore((state) => state.selectedTimelineItem?.kind === 'gesture' ? state.selectedTimelineItem.id : undefined);
   const clip = useEditorStore((state) => state.gestureClips.find((item) => item.id === selectedId));
   const updateGestureSettings = useEditorStore((state) => state.updateGestureSettings);
+  const updateGestureClip = useEditorStore((state) => state.updateGestureClip);
+  const sources = useEditorStore((state) => state.gestureSources);
   if (!clip) return null;
 
   const update = (patch: Partial<GestureSettings>) => updateGestureSettings(clip.id, patch);
   const setAction = (action: GestureAction, enabled: boolean) => update({ enabled: { ...clip.settings.enabled, [action]: enabled } });
+  const setSource = (sourceId: string) => {
+    const source = sources.find((item) => item.id === sourceId);
+    if (!source) return;
+    updateGestureClip(clip.id, { sourceAssetId: sourceId === 'current' ? undefined : sourceId, sourceStartMs: 0, sourceEndMs: source.durationMs });
+  };
 
   return (
     <div>
+      <section className="border-b border-border px-4 py-4">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-ink"><MousePointerClick className="size-3.5 text-primary-600" /> Gesture data</div>
+        <label className="block text-[9px] font-semibold text-muted">Source video<select value={clip.sourceAssetId ?? 'current'} onChange={(event) => setSource(event.currentTarget.value)} className="mt-1.5 w-full rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[10px] font-semibold text-ink outline-none focus:border-primary-400">{sources.map((source) => <option key={source.id} value={source.id}>{source.name} · {(source.durationMs / 1_000).toFixed(1)}s · {source.interactions.length} actions</option>)}</select></label>
+      </section>
+
       <section className="border-b border-border px-4 py-4">
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-ink"><MousePointerClick className="size-3.5 text-primary-600" /> Recorded actions</div>
         <div className="space-y-1.5">

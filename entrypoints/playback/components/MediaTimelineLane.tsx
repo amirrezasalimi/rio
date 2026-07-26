@@ -10,7 +10,8 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../editor/clipActions';
 import { useEditorStore } from '../editor/store';
 import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
@@ -106,19 +107,46 @@ export function MediaLibrary({
   canAddGesture,
 }: MediaLibraryProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState({ left: 0, top: 0, maxHeight: 320 });
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
 
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false);
     };
     document.addEventListener('pointerdown', closeOutside, true);
     return () => document.removeEventListener('pointerdown', closeOutside, true);
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const positionPopover = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      if (!trigger) return;
+      const margin = 12;
+      const gap = 8;
+      const width = popoverRef.current?.offsetWidth ?? 288;
+      const height = popoverRef.current?.offsetHeight ?? 320;
+      const hasRoomOnRight = trigger.right + gap + width <= window.innerWidth - margin;
+      const left = hasRoomOnRight ? trigger.right + gap : Math.max(margin, trigger.left - gap - width);
+      const top = Math.max(margin, Math.min(trigger.top, window.innerHeight - margin - height));
+      setPopoverPosition({ left, top, maxHeight: window.innerHeight - margin * 2 });
+    };
+    positionPopover();
+    window.addEventListener('resize', positionPopover);
+    window.addEventListener('scroll', positionPopover, true);
+    return () => {
+      window.removeEventListener('resize', positionPopover);
+      window.removeEventListener('scroll', positionPopover, true);
+    };
+  }, [open, assets.length]);
 
   const addPlacement = (asset: TimelineAssetSource) => {
     const duration = asset.type === 'image'
@@ -154,7 +182,9 @@ export function MediaLibrary({
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
+        aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[10px] font-semibold transition hover:border-primary-300 hover:bg-primary-50"
@@ -187,8 +217,8 @@ export function MediaLibrary({
         }}
       />
 
-      {open && (
-        <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-72 rounded-2xl border border-border bg-surface p-2 shadow-2xl shadow-ink/15">
+      {open && createPortal(
+        <div ref={popoverRef} role="dialog" aria-label="Add timeline item" className="fixed z-[100] w-72 overflow-y-auto rounded-2xl border border-border bg-surface p-2 shadow-2xl shadow-ink/15" style={{ left: popoverPosition.left, top: popoverPosition.top, maxHeight: popoverPosition.maxHeight }}>
           <div className="mb-2 px-1"><p className="text-[10px] font-semibold">Add item</p><p className="text-[8px] text-muted">Place it at the current playhead</p></div>
           <div className="mb-2 grid grid-cols-2 gap-1.5">
             <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><FileVideo className="size-3.5 text-primary-600" /> Media</button>
@@ -222,7 +252,8 @@ export function MediaLibrary({
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

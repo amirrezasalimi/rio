@@ -3,16 +3,20 @@ import { AlertCircle, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
 import { formatDuration } from '../shared/recording/media';
-import { deleteEditorAsset, getEditorAssets, getEditorProject, getRecording, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
+import { deleteEditorAsset, deleteRecordingProject, getEditorAssets, getEditorProject, getRecording, getRecordings, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
 import { EditorSidebar } from './components/EditorSidebar';
 import { ExportMenu } from './components/ExportMenu';
 import { ExportSettingsMenu } from './components/ExportSettingsMenu';
+import { FileMenu } from './components/FileMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
 import { copySelectedTimelineItem, deleteSelectedTimelineItem, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
+import { downloadRecordingClip } from './editor/clipDownload';
 import { exportRecording } from './editor/export';
+import { readGestureMetadata } from './editor/gestureMetadata';
+import { exportProjectArchive, importProjectArchive } from './editor/projectArchive';
 import { useEditorStore } from './editor/store';
-import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
+import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorClip, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
 import { VideoComposition } from './editor/VideoComposition';
 
 function getAssetType(mimeType: string): TimelineMediaType | undefined {
@@ -62,6 +66,9 @@ async function resolveAsset(asset: StoredEditorAsset): Promise<TimelineAssetSour
     name: asset.name,
     type,
     mimeType: asset.mimeType,
+    gestureDurationMs: asset.gestureDurationMs,
+    interactions: asset.interactions,
+    crop: asset.crop,
     ...metadata,
   };
 }
@@ -121,6 +128,7 @@ function App() {
   const [format, setFormat] = useState<ExportFormat>('webm');
   const [exportSettings, setExportSettings] = useState<ExportSettings>(getSavedExportSettings);
   const [exporting, setExporting] = useState(false);
+  const [projectFileBusy, setProjectFileBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [movingMedia, setMovingMedia] = useState(false);
@@ -219,7 +227,12 @@ function App() {
 
   useEffect(() => {
     assetSourcesRef.current = assetSources;
-  }, [assetSources]);
+    if (!recording) return;
+    useEditorStore.getState().setGestureSources([
+      { id: 'current', name: 'Current recording', durationMs: recording.durationMs, interactions: recording.interactions ?? [], crop: recording.crop },
+      ...assetSources.filter((asset) => asset.type === 'video' && asset.interactions?.length).map((asset) => ({ id: asset.id, name: asset.name, durationMs: asset.gestureDurationMs ?? asset.durationMs, interactions: asset.interactions ?? [], crop: asset.crop })),
+    ]);
+  }, [assetSources, recording]);
 
   useEffect(() => () => {
     assetSourcesRef.current.forEach((asset) => URL.revokeObjectURL(asset.url));
@@ -329,8 +342,6 @@ function App() {
     setCurrentTimeMs(frame / FPS * 1000);
   };
 
-
-
   const uploadMedia = async (files: FileList) => {
     if (!recording) return;
     setError(undefined);
@@ -339,6 +350,7 @@ function App() {
       for (const file of Array.from(files)) {
         const type = getAssetType(file.type);
         if (!type) continue;
+        const gestureMetadata = type === 'video' ? await readGestureMetadata(file) : undefined;
         const stored: StoredEditorAsset = {
           id: crypto.randomUUID(),
           recordingId: recording.id,
@@ -346,6 +358,9 @@ function App() {
           name: file.name,
           mimeType: file.type,
           createdAt: Date.now(),
+          gestureDurationMs: gestureMetadata?.durationMs,
+          interactions: gestureMetadata?.interactions,
+          crop: gestureMetadata?.crop,
         };
         await saveEditorAsset(stored);
         const resolved = await resolveAsset(stored);
@@ -366,8 +381,71 @@ function App() {
     const state = useEditorStore.getState();
     const removedIds = new Set(state.timelineMedia.filter((item) => item.assetId === assetId).map((item) => item.id));
     state.setTimelineMedia(state.timelineMedia.filter((item) => item.assetId !== assetId));
+    state.setGestureClips((clips) => clips.map((clip) => clip.sourceAssetId === assetId ? { ...clip, sourceAssetId: undefined } : clip));
     if (state.selectedTimelineItem?.kind === 'media' && removedIds.has(state.selectedTimelineItem.id)) {
       state.setSelectedTimelineItem(state.clips[0] ? { kind: 'recording', id: state.clips[0].id } : undefined);
+    }
+  };
+
+  const openProject = (id: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('id', id);
+    window.location.href = url.toString();
+  };
+
+  const exportProject = async () => {
+    if (!recording || projectFileBusy) return;
+    setProjectFileBusy(true);
+    setError(undefined);
+    try {
+      const project = getSerializableProject();
+      await saveEditorProject(recording.id, project);
+      downloadBlob(await exportProjectArchive(recording, project), recording, 'zip');
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : 'Could not export this project.');
+    } finally {
+      setProjectFileBusy(false);
+    }
+  };
+
+  const importProject = async (file: File) => {
+    if (projectFileBusy) return;
+    setProjectFileBusy(true);
+    setError(undefined);
+    try {
+      openProject(await importProjectArchive(file));
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : 'Could not import this project.');
+      setProjectFileBusy(false);
+    }
+  };
+
+  const deleteCurrentProject = async () => {
+    if (!recording || projectFileBusy) return;
+    setProjectFileBusy(true);
+    setProjectReady(false);
+    try {
+      await deleteRecordingProject(recording.id);
+      const next = (await getRecordings())[0];
+      if (next) openProject(next.id);
+      else {
+        try { await browser.action.openPopup(); } catch { /* The editor tab can still close without opening the toolbar popup. */ }
+        window.close();
+      }
+    } catch (reason: unknown) {
+      setProjectReady(true);
+      setProjectFileBusy(false);
+      setError(reason instanceof Error ? reason.message : 'Could not delete this project.');
+    }
+  };
+
+  const downloadClip = async (clip: EditorClip) => {
+    if (!recording) return;
+    setError(undefined);
+    try {
+      await downloadRecordingClip(recording.blob, clip, recording.interactions ?? [], recording.crop);
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : 'Could not download this clip.');
     }
   };
 
@@ -397,6 +475,7 @@ function App() {
       <header className="z-40 flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
         <div className="flex items-center gap-3">
           <LogoMark />
+          <FileMenu currentId={recording?.id} busy={projectFileBusy} onImport={importProject} onExport={exportProject} onDelete={deleteCurrentProject} onError={setError} />
           <span className="hidden h-5 w-px bg-border sm:block" />
           <div className="hidden sm:block"><p className="text-xs font-semibold">Recording complete</p><p className="text-[10px] text-muted">{recording ? formatDuration(recording.durationMs) : 'Loading…'}</p></div>
         </div>
@@ -405,15 +484,13 @@ function App() {
           <ExportMenu format={format} busy={exporting} progress={progress} onFormatChange={setFormat} onExport={runExport} />
         </div>
       </header>
-
       {error && <div role="alert" className="flex items-center gap-2 border-b border-accent-200 bg-accent-50 px-4 py-2 text-xs text-danger"><AlertCircle className="size-4" />{error}</div>}
       {notice && <div className="flex items-center gap-2 border-b border-primary-200 bg-primary-50 px-4 py-2 text-xs text-primary-800"><CheckCircle2 className="size-4" />{notice}</div>}
-
       <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
         <EditorSidebar />
         <div className="flex min-h-0 flex-col">
           {videoUrl ? <CanvasWorkspace inputProps={inputProps} playerRef={playerRef} movingMedia={movingMedia} onMovingMediaChange={setMovingMedia} /> : <section className="grid min-h-0 flex-1 place-items-center"><div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="size-4 animate-spin" /> Loading recording…</div></section>}
-          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
+          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onDownloadClip={(clip) => void downloadClip(clip)} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
         </div>
       </div>
     </main>

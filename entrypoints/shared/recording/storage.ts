@@ -6,6 +6,7 @@ const RECORDINGS_STORE = 'recordings';
 const PROJECTS_STORE = 'editor-projects';
 const ASSETS_STORE = 'editor-assets';
 const projectSaveQueues = new Map<string, Promise<void>>();
+const deletedProjects = new Set<string>();
 
 export interface StoredRecording {
   id: string;
@@ -25,6 +26,9 @@ export interface StoredEditorAsset {
   name: string;
   mimeType: string;
   createdAt: number;
+  gestureDurationMs?: number;
+  interactions?: RecordedInteraction[];
+  crop?: CropArea;
 }
 
 interface StoredEditorProject<T> {
@@ -56,6 +60,7 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 export async function saveRecording(recording: StoredRecording): Promise<void> {
+  deletedProjects.delete(recording.id);
   const database = await openDatabase();
 
   await new Promise<void>((resolve, reject) => {
@@ -66,6 +71,17 @@ export async function saveRecording(recording: StoredRecording): Promise<void> {
   });
 
   database.close();
+}
+
+export async function getRecordings(): Promise<StoredRecording[]> {
+  const database = await openDatabase();
+  const recordings = await new Promise<StoredRecording[]>((resolve, reject) => {
+    const request = database.transaction(RECORDINGS_STORE).objectStore(RECORDINGS_STORE).getAll();
+    request.onsuccess = () => resolve(request.result as StoredRecording[]);
+    request.onerror = () => reject(request.error ?? new Error('Could not load recordings.'));
+  });
+  database.close();
+  return recordings.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function getRecording(id: string): Promise<StoredRecording | undefined> {
@@ -112,6 +128,23 @@ export async function getEditorAssets(recordingId: string): Promise<StoredEditor
   return assets;
 }
 
+export async function deleteRecordingProject(recordingId: string): Promise<void> {
+  deletedProjects.add(recordingId);
+  await projectSaveQueues.get(recordingId)?.catch(() => undefined);
+  const database = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction([RECORDINGS_STORE, PROJECTS_STORE, ASSETS_STORE], 'readwrite');
+    transaction.objectStore(RECORDINGS_STORE).delete(recordingId);
+    transaction.objectStore(PROJECTS_STORE).delete(recordingId);
+    const assets = transaction.objectStore(ASSETS_STORE);
+    const request = assets.index('recordingId').getAllKeys(recordingId);
+    request.onsuccess = () => request.result.forEach((key) => assets.delete(key));
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('Could not delete the project.'));
+  });
+  database.close();
+}
+
 export async function deleteEditorAsset(id: string): Promise<void> {
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
@@ -124,9 +157,11 @@ export async function deleteEditorAsset(id: string): Promise<void> {
 }
 
 export function saveEditorProject<T>(recordingId: string, settings: T): Promise<void> {
+  if (deletedProjects.has(recordingId)) return Promise.resolve();
   const requestedAt = Date.now();
   const previous = projectSaveQueues.get(recordingId) ?? Promise.resolve();
   const save = previous.catch(() => undefined).then(async () => {
+    if (deletedProjects.has(recordingId)) return;
     const database = await openDatabase();
     try {
       await new Promise<void>((resolve, reject) => {

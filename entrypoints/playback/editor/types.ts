@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 
 export type FrameStyle =
   | 'default'
@@ -46,8 +47,17 @@ export interface GestureSettings {
   opacity: number;
 }
 
+export interface GestureDataSource {
+  id: string;
+  name: string;
+  durationMs: number;
+  interactions: RecordedInteraction[];
+  crop?: CropArea;
+}
+
 export interface GestureClip {
   id: string;
+  sourceAssetId?: string;
   sourceStartMs: number;
   sourceEndMs: number;
   timelineStartMs: number;
@@ -168,6 +178,9 @@ export interface TimelineAssetSource {
   durationMs: number;
   width: number;
   height: number;
+  gestureDurationMs?: number;
+  interactions?: RecordedInteraction[];
+  crop?: CropArea;
 }
 
 export interface EditorSettings {

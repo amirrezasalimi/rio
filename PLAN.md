@@ -72,7 +72,7 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Add direct centered recorded-media scale/position controls with reset
 - [x] Replace timeline trim sliders with direct draggable clip edges and playhead
 - [x] Preserve timeline gaps and support freely positioned clips
-- [x] Keep the timeline ruler stable, support a manual maximum duration with empty trailing space, and add slider-based horizontal time zoom for precise clip editing
+- [x] Keep the timeline ruler stable, support a manual maximum duration with empty trailing space, add slider-based horizontal time zoom, and provide an optional persistent 0.5-second ruler mode for precise clip editing
 - [x] Add a persistent project media library for uploaded images, videos, and audio with reusable timeline placements
 - [x] Support moving, trimming, selecting, and removing uploaded media on a shared synchronized timeline
 - [x] Add a pan-and-zoom canvas workspace with fit controls
@@ -96,6 +96,8 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Hide empty recording, media, gesture, and text timeline lanes
 - [x] Support Shift multi-selection and synchronized movement across timeline item types
 - [x] Keep the original recording as a permanent Add item source while allowing all recording placements to be removed
+- [x] Add a File menu for new projects, recent projects, full ZIP import/export, and complete current-project deletion
+- [x] Add blank projects, original-quality recording clip downloads, and reusable gesture metadata sources from project videos
 - [ ] Add blur and spotlight annotations
 - [ ] Add undo and redo
 
@@ -157,3 +159,5 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Keep the editor preview at 30 FPS while allowing export-only resolution and frame-rate presets. Derive Remotion timeline timing from the active composition FPS and scale the project canvas proportionally at render time so export quality does not alter the editable canvas.
 - 2026-07-26: Serialize and version editor-project writes so delayed autosaves, page-hide flushes, and concurrent editor tabs cannot overwrite newer timeline state. Allow an intentionally empty recording track while keeping the immutable original recording available as a permanent source asset.
 - 2026-07-26: Centralize timeline item creation in one Add item menu and map trackpad pinch gestures to horizontal timeline time zoom while preserving ordinary scrolling.
+- 2026-07-26: Use a versioned ZIP archive for complete project portability, containing the immutable source recording, interaction metadata, editor settings, and uploaded asset blobs. Imported projects receive fresh recording and asset IDs to avoid overwriting local work.
+- 2026-07-26: Embed Rio gesture data in a versioned binary-safe video footer when downloading recording clips. Project video assets with that footer become selectable gesture-data sources, retaining source duration, action count, timestamps, and crop metadata.

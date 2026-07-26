@@ -1,7 +1,7 @@
 import { MousePointer2 } from 'lucide-react';
 import { interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
-import type { EditorClip, GestureAction, GestureClip, MediaTransform } from './types';
+import type { EditorClip, GestureAction, GestureClip, MediaTransform, TimelineAssetSource, TimelineMediaItem } from './types';
 import { getClipMediaTransform } from './types';
 
 interface ProjectedEvent extends RecordedInteraction {
@@ -48,6 +48,13 @@ function getMediaBounds(clip: EditorClip | undefined, fallback: MediaTransform, 
   };
 }
 
+function getAssetBounds(item: TimelineMediaItem, canvasWidth: number, canvasHeight: number, sourceWidth: number, sourceHeight: number) {
+  const fit = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight) * item.scale / 100;
+  const width = sourceWidth * fit;
+  const height = sourceHeight * fit;
+  return { left: canvasWidth * item.positionX / 100 - width / 2, top: canvasHeight * item.positionY / 100 - height / 2, width, height };
+}
+
 function Effect({ event, ageMs, clip }: { event: ProjectedEvent; ageMs: number; clip: GestureClip }) {
   const settings = clip.settings;
   const progress = Math.max(0, Math.min(1, ageMs / settings.durationMs));
@@ -67,18 +74,31 @@ function Effect({ event, ageMs, clip }: { event: ProjectedEvent; ageMs: number; 
   });
 }
 
-export function GestureOverlay({ gestureClips, interactions, clips, crop, canvasWidth, canvasHeight, sourceWidth, sourceHeight, media }: { gestureClips: GestureClip[]; interactions: RecordedInteraction[]; clips: EditorClip[]; crop?: CropArea; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; media: MediaTransform }) {
+export function GestureOverlay({ gestureClips, interactions, clips, crop, timelineMedia, assetSources, canvasWidth, canvasHeight, sourceWidth, sourceHeight, media }: { gestureClips: GestureClip[]; interactions: RecordedInteraction[]; clips: EditorClip[]; crop?: CropArea; timelineMedia: TimelineMediaItem[]; assetSources: TimelineAssetSource[]; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; media: MediaTransform }) {
   const { fps } = useVideoConfig();
   const timelineMs = useCurrentFrame() / fps * 1_000;
 
   return gestureClips.map((gestureClip) => {
     const duration = gestureClip.sourceEndMs - gestureClip.sourceStartMs;
     if (timelineMs < gestureClip.timelineStartMs || timelineMs > gestureClip.timelineStartMs + duration) return null;
-    const projected = interactions.flatMap((event): ProjectedEvent[] => {
+    const sourceAsset = gestureClip.sourceAssetId ? assetSources.find((asset) => asset.id === gestureClip.sourceAssetId) : undefined;
+    const sourceInteractions = sourceAsset?.interactions ?? interactions;
+    const sourceCrop = sourceAsset?.crop ?? crop;
+    const projected = sourceInteractions.flatMap((event): ProjectedEvent[] => {
       const action = getAction(event);
       if (!gestureClip.settings.enabled[action]) return [];
-      const point = getSourcePoint(event, sourceWidth, sourceHeight, crop);
+      const eventSourceWidth = sourceAsset?.width ?? sourceWidth;
+      const eventSourceHeight = sourceAsset?.height ?? sourceHeight;
+      const point = getSourcePoint(event, eventSourceWidth, eventSourceHeight, sourceCrop);
       if (!point && action !== 'scroll') return [];
+
+      if (sourceAsset) return timelineMedia.filter((item) => item.assetId === sourceAsset.id).flatMap((item): ProjectedEvent[] => {
+        if (event.timestampMs < item.sourceStartMs || event.timestampMs > item.sourceEndMs) return [];
+        const editedTimelineMs = item.timelineStartMs + event.timestampMs - item.sourceStartMs;
+        if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
+        const bounds = getAssetBounds(item, canvasWidth, canvasHeight, eventSourceWidth, eventSourceHeight);
+        return [{ ...event, timelineMs: editedTimelineMs, x: point ? bounds.left + point.x * bounds.width : bounds.left + bounds.width / 2, y: point ? bounds.top + point.y * bounds.height : bounds.top + bounds.height / 2 }];
+      });
 
       return clips.flatMap((recordingClip): ProjectedEvent[] => {
         if (event.timestampMs < recordingClip.sourceStartMs || event.timestampMs > recordingClip.sourceEndMs) return [];
