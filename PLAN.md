@@ -143,3 +143,4 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Model mesh backgrounds as an editable list of positioned color points and persist noise type plus light position so preview and export remain identical.
 - 2026-07-26: Make adaptive shadows derive their tint from the active background and their direction from a direct-manipulation light control.
 - 2026-07-26: Treat canvas and background controls as project-wide, show frame/border/shadow controls only for recording clips, and expose transform, opacity, volume, and hold-last-frame settings only where the selected uploaded media type supports them.
+- 2026-07-26: Keep the Area selector declaratively registered, but reinject its generated content-script bundle with the Scripting API when an already-open tab has no receiver after an extension install or reload.

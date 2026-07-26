@@ -71,6 +71,33 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Could not start the recording.';
 }
 
+function canInjectIntoPage(url?: string) {
+  return Boolean(url && /^(https?|file):/i.test(url));
+}
+
+async function selectRecordingArea(tabId: number, requestId: string) {
+  const message = { type: 'select-recording-area', requestId };
+
+  try {
+    return await browser.tabs.sendMessage(tabId, message) as CropArea | null | undefined;
+  } catch (error: unknown) {
+    const tab = await browser.tabs.get(tabId);
+    if (!canInjectIntoPage(tab.url)) {
+      throw new Error('Area recording is unavailable on this browser page. Open a website and try again.');
+    }
+
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId },
+        files: ['/content-scripts/region.js'],
+      });
+      return await browser.tabs.sendMessage(tabId, message) as CropArea | null | undefined;
+    } catch {
+      throw new Error('Rio could not open the Area selector on this page. Reload the page and try again.', { cause: error });
+    }
+  }
+}
+
 async function showPageControls(sessionId: string, pending: PendingCapture) {
   const state: RecordingSessionState = { status: 'choosing', elapsedMs: 0 };
   await browser.tabs.sendMessage(pending.targetTabId, {
@@ -111,10 +138,7 @@ export default defineBackground(() => {
 
       if (request.options.mode === 'region') {
         try {
-          const area = await browser.tabs.sendMessage(request.targetTabId, {
-            type: 'select-recording-area',
-            requestId: sessionId,
-          }) as CropArea | null | undefined;
+          const area = await selectRecordingArea(request.targetTabId, sessionId);
           if (!area) {
             pendingCaptures.delete(sessionId);
             return { ok: false } satisfies StartCaptureResponse;

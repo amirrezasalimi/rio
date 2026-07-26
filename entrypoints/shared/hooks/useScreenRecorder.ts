@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRecorderChannel } from '../recording/channel';
-import { selectRecordingMimeType, stopStream } from '../recording/media';
+import { getVideoCropRect, selectRecordingMimeType, stopStream } from '../recording/media';
 import { saveRecording } from '../recording/storage';
 import type {
   CropArea,
@@ -173,18 +173,12 @@ export function useScreenRecorder() {
           if (done) break;
 
           try {
-            const sourceCrop = normalized
-              ? {
-                  x: crop.x * frame.displayWidth,
-                  y: crop.y * frame.displayHeight,
-                  width: crop.width * frame.displayWidth,
-                  height: crop.height * frame.displayHeight,
-                }
-              : crop;
-            const x = Math.max(0, Math.floor(sourceCrop.x / 2) * 2);
-            const y = Math.max(0, Math.floor(sourceCrop.y / 2) * 2);
-            const width = Math.max(2, Math.min(frame.displayWidth - x, Math.floor(sourceCrop.width / 2) * 2));
-            const height = Math.max(2, Math.min(frame.displayHeight - y, Math.floor(sourceCrop.height / 2) * 2));
+            const { x, y, width, height } = getVideoCropRect(
+              crop,
+              frame.displayWidth,
+              frame.displayHeight,
+              normalized,
+            );
             if (!canvas || canvas.width !== width || canvas.height !== height) {
               canvas = new OffscreenCanvas(width, height);
               context = canvas.getContext('2d', { alpha: false });

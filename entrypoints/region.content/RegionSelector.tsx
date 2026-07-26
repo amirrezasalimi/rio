@@ -111,6 +111,8 @@ export function RegionSelector({ onComplete }: RegionSelectorProps) {
       y: selection.y / window.innerHeight,
       width: selection.width / window.innerWidth,
       height: selection.height / window.innerHeight,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
     });
   };
 
