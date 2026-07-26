@@ -4,6 +4,8 @@ import { getVideoCropRect, selectRecordingMimeType, stopStream } from '../record
 import { saveRecording } from '../recording/storage';
 import type {
   CropArea,
+  InteractionEventInput,
+  RecordedInteraction,
   RecorderCommand,
   RecordingOptions,
   RecordingSessionState,
@@ -22,6 +24,7 @@ interface ActiveCapture extends PendingCapture {
   startedAt: number;
   pausedAt?: number;
   pausedDuration: number;
+  interactions: RecordedInteraction[];
 }
 
 interface MediaStreamTrackProcessorInstance {
@@ -100,6 +103,16 @@ export function useScreenRecorder() {
     active.recorder.resume();
     publishState({ ...stateRef.current, status: 'recording' });
   }, [publishState]);
+
+  const recordInteraction = useCallback((event: InteractionEventInput) => {
+    const active = activeRef.current;
+    if (!active || stateRef.current.status !== 'recording') return;
+    const startedAtEpoch = performance.timeOrigin + active.startedAt;
+    const timestampMs = event.occurredAt - startedAtEpoch - active.pausedDuration;
+    if (timestampMs < 0) return;
+    const { occurredAt: _, ...data } = event;
+    active.interactions.push({ ...data, timestampMs });
+  }, []);
 
   const handleCommand = useCallback((command: RecorderCommand) => {
     if (command === 'pause') pause();
@@ -221,7 +234,12 @@ export function useScreenRecorder() {
     };
   }, []);
 
-  const beginMediaRecorder = useCallback(async (capture: PendingCapture, crop?: CropArea, normalizedCrop = false) => {
+  const beginMediaRecorder = useCallback(async (
+    capture: PendingCapture,
+    crop?: CropArea,
+    normalizedCrop = false,
+    captureMode?: RecordingOptions['mode'],
+  ) => {
     let videoStream = capture.displayStream;
     let stopDrawing: (() => void) | undefined;
 
@@ -249,7 +267,11 @@ export function useScreenRecorder() {
       cleanUp();
     };
     recorder.onstop = async () => {
-      const durationMs = stateRef.current.elapsedMs;
+      const active = activeRef.current;
+      const endedAt = active?.pausedAt ?? performance.now();
+      const durationMs = active
+        ? Math.max(0, endedAt - active.startedAt - active.pausedDuration)
+        : stateRef.current.elapsedMs;
       const finalType = recorder.mimeType || 'video/webm';
       const id = crypto.randomUUID();
 
@@ -265,6 +287,9 @@ export function useScreenRecorder() {
           mimeType: finalType,
           createdAt: Date.now(),
           durationMs,
+          captureMode,
+          crop,
+          interactions: active?.interactions.filter((event) => event.timestampMs <= durationMs) ?? [],
         });
         cleanUp();
         publishState({ status: 'idle', elapsedMs: 0 });
@@ -288,6 +313,7 @@ export function useScreenRecorder() {
       stopDrawing,
       startedAt,
       pausedDuration: 0,
+      interactions: [],
     };
     pendingRef.current = null;
     setPreviewStream(undefined);
@@ -328,7 +354,7 @@ export function useScreenRecorder() {
         setPreviewStream(displayStream);
         publishState({ status: 'cropping', elapsedMs: 0 });
       } else {
-        await beginMediaRecorder(capture);
+        await beginMediaRecorder(capture, undefined, false, options.mode);
       }
     } catch (error) {
       cleanUp();
@@ -376,7 +402,7 @@ export function useScreenRecorder() {
       const capture = { displayStream, microphoneStream };
       pendingRef.current = capture;
 
-      await beginMediaRecorder(capture, crop, options.mode === 'region');
+      await beginMediaRecorder(capture, crop, options.mode === 'region', options.mode);
     } catch (error) {
       cleanUp();
       publishState({
@@ -390,7 +416,7 @@ export function useScreenRecorder() {
   const confirmCrop = useCallback(async (crop: CropArea) => {
     if (!pendingRef.current) return;
     try {
-      await beginMediaRecorder(pendingRef.current, crop);
+      await beginMediaRecorder(pendingRef.current, crop, false, 'region');
     } catch (error) {
       cleanUp();
       publishState({
@@ -406,5 +432,5 @@ export function useScreenRecorder() {
     publishState(initialState);
   }, [cleanUp, publishState]);
 
-  return { state, previewStream, requestCapture, startApprovedCapture, confirmCrop, cancelCrop, pause, resume, stop };
+  return { state, previewStream, requestCapture, startApprovedCapture, confirmCrop, cancelCrop, pause, resume, stop, recordInteraction };
 }

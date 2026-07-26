@@ -14,6 +14,7 @@ import { formatDuration } from '../../shared/recording/media';
 import { useEditorStore } from '../editor/store';
 import type { EditorClip, TimelineAssetSource } from '../editor/types';
 import { getClipDurationMs, getEditedDurationMs } from '../editor/types';
+import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
 
 const MIN_CLIP_MS = 150;
@@ -21,7 +22,6 @@ const SNAP_MS = 50;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 16;
 const ZOOM_STEP = 0.5;
-
 function locateSourceTime(
   clips: EditorClip[],
   editedTimeMs: number,
@@ -42,16 +42,13 @@ function locateSourceTime(
   }
   return undefined;
 }
-
 function timeLabel(milliseconds: number): string {
   const seconds = Math.max(0, milliseconds) / 1000;
   return seconds < 10 ? `${seconds.toFixed(1)}s` : formatDuration(milliseconds);
 }
-
 function snap(value: number): number {
   return Math.round(value / SNAP_MS) * SNAP_MS;
 }
-
 export function Timeline({
   currentTimeMs,
   sourceDurationMs,
@@ -59,6 +56,7 @@ export function Timeline({
   assets,
   onUploadMedia,
   onDeleteAsset,
+  interactionCount,
 }: {
   currentTimeMs: number;
   sourceDurationMs: number;
@@ -66,10 +64,12 @@ export function Timeline({
   assets: TimelineAssetSource[];
   onUploadMedia: (files: FileList) => void;
   onDeleteAsset: (assetId: string) => void;
+  interactionCount: number;
 }) {
   const clips = useEditorStore((state) => state.clips);
   const setClips = useEditorStore((state) => state.setClips);
   const timelineMedia = useEditorStore((state) => state.timelineMedia);
+  const gestureClips = useEditorStore((state) => state.gestureClips);
   const setTimelineMedia = useEditorStore((state) => state.setTimelineMedia);
   const selection = useEditorStore((state) => state.selectedTimelineItem);
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
@@ -82,20 +82,19 @@ export function Timeline({
   const timelineLimitMs = useEditorStore((state) => state.timelineLimitMs);
   const setTimelineLimitMs = useEditorStore((state) => state.setTimelineLimitMs);
   const trackRef = useRef<HTMLDivElement>(null);
-  const contentDurationMs = getEditedDurationMs(clips, timelineMedia);
+  const editedRecordingDurationMs = getEditedDurationMs(clips);
+  const contentDurationMs = getEditedDurationMs(clips, timelineMedia, gestureClips);
   const projectDurationMs = Math.max(timelineLimitMs, contentDurationMs, 1_000);
   const trailingEditSpaceMs = Math.max(5_000, projectDurationMs * 0.2);
   // Keep empty space after the final item so an end handle never sits against
   // the viewport boundary. Lock the ruler while dragging so it cannot move
   // underneath the pointer as the item duration changes.
   const timelineDurationMs = lockedDragDurationMs ?? projectDurationMs + trailingEditSpaceMs;
-
   useEffect(() => {
     if (timelineLimitMs < sourceDurationMs) setTimelineLimitMs(sourceDurationMs);
   }, [sourceDurationMs, timelineLimitMs, setTimelineLimitMs]);
   const selectedId = selection?.kind === 'recording' ? selection.id : undefined;
   const selectedIndex = clips.findIndex((clip) => clip.id === selectedId);
-
   const setSafeZoom = (value: number) =>
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)));
 
@@ -487,6 +486,7 @@ export function Timeline({
             })}
 
           </div>
+          <GestureTimelineLane editedRecordingDurationMs={editedRecordingDurationMs} timelineDurationMs={timelineDurationMs} interactionCount={interactionCount} onDragStateChange={setLockedDragDurationMs} />
           <MediaTimelineLane
             items={timelineMedia}
             timelineDurationMs={timelineDurationMs}

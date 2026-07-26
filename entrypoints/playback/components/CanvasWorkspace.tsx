@@ -23,7 +23,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   const selectedRecording = useEditorStore((state) => selection?.kind === 'recording' ? state.clips.find((clip) => clip.id === selection.id) : undefined);
   const selectedUpload = useEditorStore((state) => selection?.kind === 'media' ? state.timelineMedia.find((item) => item.id === selection.id) : undefined);
   const projectDurationMs = Math.max(
-    getEditedDurationMs(inputProps.clips, inputProps.timelineMedia),
+    getEditedDurationMs(inputProps.clips, inputProps.timelineMedia, inputProps.gestureClips),
     inputProps.timelineLimitMs,
   );
   const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
@@ -97,7 +97,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   const fit = Math.min(inputProps.canvas.width / safeSourceWidth, inputProps.canvas.height / safeSourceHeight) * selectedTransform.scale / 100;
   const overlayWidth = selectedUpload ? inputProps.canvas.width * selectedUpload.scale / 100 : safeSourceWidth * fit;
   const overlayHeight = selectedUpload ? inputProps.canvas.height * selectedUpload.scale / 100 : safeSourceHeight * fit;
-  const canMoveSelection = Boolean(selection) && (!selectedUpload || selectedUpload.type !== 'audio');
+  const canMoveSelection = Boolean(selectedRecording || selectedUpload) && (!selectedUpload || selectedUpload.type !== 'audio');
 
   return (
     <section ref={workspaceRef} onPointerDown={panWorkspace} className="relative min-h-0 flex-1 cursor-grab overflow-hidden bg-cream-100/45 active:cursor-grabbing [background-image:radial-gradient(var(--color-border)_1px,transparent_1px)] [background-size:18px_18px]">

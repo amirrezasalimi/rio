@@ -10,7 +10,7 @@ import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
 import { exportRecording } from './editor/export';
 import { useEditorStore } from './editor/store';
-import { createDefaultMeshPoints, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
+import { createDefaultGestureSettings, createDefaultMeshPoints, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
 import { VideoComposition } from './editor/VideoComposition';
 
 function getAssetType(mimeType: string): TimelineMediaType | undefined {
@@ -69,6 +69,7 @@ function getSerializableProject(): EditorSettings {
   return {
     clips: state.clips,
     timelineMedia: state.timelineMedia,
+    gestureClips: state.gestureClips,
     timelineLimitMs: state.timelineLimitMs,
     frameStyle: state.frameStyle,
     borderShape: state.borderShape,
@@ -113,7 +114,7 @@ function App() {
   const initializedId = useRef<string | undefined>(undefined);
   const assetSourcesRef = useRef<TimelineAssetSource[]>([]);
   const settings = useEditorStore();
-  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia);
+  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips);
   const projectDurationMs = Math.max(editedDurationMs, settings.timelineLimitMs);
   const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
 
@@ -153,6 +154,12 @@ function App() {
               fadeInMs: item.fadeInMs ?? 0,
               fadeOutMs: item.fadeOutMs ?? 0,
               holdLastFrame: item.holdLastFrame ?? false,
+            })),
+            gestureClips: (saved.gestureClips ?? []).map((clip) => ({
+              ...clip,
+              sourceStartMs: clip.sourceStartMs ?? 0,
+              sourceEndMs: clip.sourceEndMs ?? stored.durationMs,
+              settings: { ...createDefaultGestureSettings(), ...clip.settings, enabled: { ...createDefaultGestureSettings().enabled, ...clip.settings?.enabled } },
             })),
             timelineLimitMs: saved.timelineLimitMs ?? Math.max(stored.durationMs, 1_000),
             borderOpacity: saved.borderOpacity ?? 100,
@@ -251,6 +258,7 @@ function App() {
     src: videoUrl ?? '',
     clips: settings.clips,
     timelineMedia: settings.timelineMedia,
+    gestureClips: settings.gestureClips,
     timelineLimitMs: settings.timelineLimitMs,
     assetSources,
     background: settings.background,
@@ -270,7 +278,9 @@ function App() {
     sourceWidth: sourceSize.width,
     sourceHeight: sourceSize.height,
     sourceDurationMs: recording?.durationMs ?? 0,
-  }), [videoUrl, sourceSize, recording?.durationMs, assetSources, settings.clips, settings.timelineMedia, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY]);
+    interactions: recording?.interactions ?? [],
+    crop: recording?.crop,
+  }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY]);
 
   const seek = (timeMs: number) => {
     const frame = Math.min(durationInFrames - 1, Math.max(0, Math.round(timeMs / 1000 * FPS)));
@@ -359,7 +369,7 @@ function App() {
         <EditorSidebar />
         <div className="flex min-h-0 flex-col">
           {videoUrl ? <CanvasWorkspace inputProps={inputProps} playerRef={playerRef} movingMedia={movingMedia} onMovingMediaChange={setMovingMedia} /> : <section className="grid min-h-0 flex-1 place-items-center"><div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="size-4 animate-spin" /> Loading recording…</div></section>}
-          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
+          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
         </div>
       </div>
     </main>

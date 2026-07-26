@@ -1,9 +1,11 @@
 import { StaticSquircle } from '@squircle-js/react';
 import { Audio, Video } from '@remotion/media';
 import type { CSSProperties, ReactNode } from 'react';
+import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import { AbsoluteFill, Freeze, Sequence } from 'remotion';
 import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TimelineAssetSource, TimelineMediaItem } from './types';
 import { FPS, getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getTimelineItemDurationMs } from './types';
+import { GestureOverlay } from './GestureOverlay';
 
 export interface VideoCompositionProps extends EditorSettings, Record<string, unknown> {
   src: string;
@@ -11,6 +13,8 @@ export interface VideoCompositionProps extends EditorSettings, Record<string, un
   sourceHeight: number;
   sourceDurationMs: number;
   assetSources: TimelineAssetSource[];
+  interactions: RecordedInteraction[];
+  crop?: CropArea;
 }
 
 
@@ -175,13 +179,13 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   </>;
 }
 
-export function VideoComposition({ src, clips, timelineMedia, timelineLimitMs, assetSources, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY }: VideoCompositionProps) {
+export function VideoComposition({ src, clips, timelineMedia, gestureClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY }: VideoCompositionProps) {
   const safeSourceWidth = Math.max(1, sourceWidth);
   const safeSourceHeight = Math.max(1, sourceHeight);
   const defaultVisual: ClipVisualSettings = { frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY };
   const compositionDurationInFrames = Math.max(
     1,
-    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia), timelineLimitMs) / 1000 * FPS),
+    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips), timelineLimitMs) / 1000 * FPS),
   );
 
   return (
@@ -192,6 +196,7 @@ export function VideoComposition({ src, clips, timelineMedia, timelineLimitMs, a
         const asset = assetSources.find((source) => source.id === item.assetId);
         return asset ? <TimelineMediaSequence key={item.id} item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} /> : null;
       })}
+      <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} />
       {background.type === 'image' && background.imageCreditUrl && <a href={background.imageCreditUrl} target="_blank" rel="noreferrer" style={{ position: 'absolute', left: 14, bottom: 10, color: 'rgba(255,255,255,.9)', fontSize: 10, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Photo by {background.imageCredit} on Unsplash</a>}
     </AbsoluteFill>
   );

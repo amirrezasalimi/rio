@@ -36,11 +36,16 @@ function App() {
       } satisfies RecordingOptions,
     };
   }, []);
-  const { state, startApprovedCapture, pause, resume, stop } = useScreenRecorder();
+  const { state, startApprovedCapture, pause, resume, stop, recordInteraction } = useScreenRecorder();
 
   useEffect(() => {
     const handleMessage = (message: unknown) => {
       const request = message as CaptureApprovedMessage | RecorderRuntimeMessage;
+      if (request.type === 'interaction-event' && request.sessionId === capture.sessionId) {
+        recordInteraction(request.event);
+        return;
+      }
+
       if (request.type === 'recorder-command' && request.sessionId === capture.sessionId) {
         if (request.command === 'pause') pause();
         if (request.command === 'resume') resume();
@@ -67,7 +72,7 @@ function App() {
     browser.runtime.onMessage.addListener(handleMessage);
     void browser.runtime.sendMessage({ type: 'recorder-ready', sessionId: capture.sessionId });
     return () => browser.runtime.onMessage.removeListener(handleMessage);
-  }, [capture, pause, resume, startApprovedCapture, stop]);
+  }, [capture, pause, recordInteraction, resume, startApprovedCapture, stop]);
 
   useEffect(() => {
     void browser.runtime.sendMessage({

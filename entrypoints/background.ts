@@ -75,32 +75,35 @@ function canInjectIntoPage(url?: string) {
   return Boolean(url && /^(https?|file):/i.test(url));
 }
 
-async function selectRecordingArea(tabId: number, requestId: string) {
-  const message = { type: 'select-recording-area', requestId };
-
+async function sendPageMessage<T>(tabId: number, message: unknown): Promise<T> {
   try {
-    return await browser.tabs.sendMessage(tabId, message) as CropArea | null | undefined;
+    return await browser.tabs.sendMessage(tabId, message) as T;
+  } catch (error: unknown) {
+    const tab = await browser.tabs.get(tabId);
+    if (!canInjectIntoPage(tab.url)) throw error;
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: ['/content-scripts/region.js'],
+    });
+    return await browser.tabs.sendMessage(tabId, message) as T;
+  }
+}
+
+async function selectRecordingArea(tabId: number, requestId: string) {
+  try {
+    return await sendPageMessage<CropArea | null | undefined>(tabId, { type: 'select-recording-area', requestId });
   } catch (error: unknown) {
     const tab = await browser.tabs.get(tabId);
     if (!canInjectIntoPage(tab.url)) {
       throw new Error('Area recording is unavailable on this browser page. Open a website and try again.');
     }
-
-    try {
-      await browser.scripting.executeScript({
-        target: { tabId },
-        files: ['/content-scripts/region.js'],
-      });
-      return await browser.tabs.sendMessage(tabId, message) as CropArea | null | undefined;
-    } catch {
-      throw new Error('Rio could not open the Area selector on this page. Reload the page and try again.', { cause: error });
-    }
+    throw new Error('Rio could not open the Area selector on this page. Reload the page and try again.', { cause: error });
   }
 }
 
 async function showPageControls(sessionId: string, pending: PendingCapture) {
   const state: RecordingSessionState = { status: 'choosing', elapsedMs: 0 };
-  await browser.tabs.sendMessage(pending.targetTabId, {
+  await sendPageMessage(pending.targetTabId, {
     type: 'show-recorder-controls',
     sessionId,
     state,

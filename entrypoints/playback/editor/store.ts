@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TimelineMediaItem, TimelineSelection } from './types';
+import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureSettings, MediaTransform, ShadowStyle, TimelineMediaItem, TimelineSelection } from './types';
 import { CANVAS_SIZES, createInitialSettings } from './types';
 
 interface EditorStore extends EditorSettings {
@@ -22,6 +22,9 @@ interface EditorStore extends EditorSettings {
   resetCanvas: () => void;
   setClips: (clips: EditorClip[]) => void;
   setTimelineMedia: (timelineMedia: TimelineMediaItem[]) => void;
+  setGestureClips: (gestureClips: GestureClip[]) => void;
+  updateGestureClip: (id: string, patch: Partial<Omit<GestureClip, 'settings'>>) => void;
+  updateGestureSettings: (id: string, patch: Partial<GestureSettings>) => void;
   setTimelineLimitMs: (timelineLimitMs: number) => void;
   setSelectedTimelineItem: (selection: TimelineSelection | undefined) => void;
   updateTimelineMediaItem: (id: string, patch: Partial<TimelineMediaItem>) => void;
@@ -57,6 +60,13 @@ export const useEditorStore = create<EditorStore>((set) => ({
   resetCanvas: () => set({ canvas: { ratio: '16:9', ...CANVAS_SIZES['16:9'] } }),
   setClips: (clips) => set({ clips }),
   setTimelineMedia: (timelineMedia) => set({ timelineMedia }),
+  setGestureClips: (gestureClips) => set({ gestureClips }),
+  updateGestureClip: (id, patch) => set((state) => ({
+    gestureClips: state.gestureClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),
+  })),
+  updateGestureSettings: (id, patch) => set((state) => ({
+    gestureClips: state.gestureClips.map((clip) => clip.id === id ? { ...clip, settings: { ...clip.settings, ...patch } } : clip),
+  })),
   setTimelineLimitMs: (timelineLimitMs) => set({ timelineLimitMs: Math.max(1_000, timelineLimitMs) }),
   setSelectedTimelineItem: (selectedTimelineItem) => set({ selectedTimelineItem }),
   updateTimelineMediaItem: (id, patch) => set((state) => ({

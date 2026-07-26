@@ -1,3 +1,5 @@
+import type { CaptureMode, CropArea, RecordedInteraction } from './types';
+
 const DATABASE_NAME = 'rio-recorder';
 const DATABASE_VERSION = 3;
 const RECORDINGS_STORE = 'recordings';
@@ -10,6 +12,9 @@ export interface StoredRecording {
   mimeType: string;
   createdAt: number;
   durationMs: number;
+  captureMode?: CaptureMode;
+  crop?: CropArea;
+  interactions?: RecordedInteraction[];
 }
 
 export interface StoredEditorAsset {

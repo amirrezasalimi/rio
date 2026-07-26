@@ -20,7 +20,32 @@ export type MeshMode = 'preset' | 'custom';
 export type TimelineMediaType = 'image' | 'video' | 'audio';
 export type TimelineSelection =
   | { kind: 'recording'; id: string }
-  | { kind: 'media'; id: string };
+  | { kind: 'media'; id: string }
+  | { kind: 'gesture'; id: string };
+export type GestureAction = 'pointer' | 'click' | 'double-click' | 'drag' | 'scroll';
+export type GestureAnimation = 'pulse' | 'ripple' | 'burst';
+
+export interface GestureSettings {
+  enabled: Record<GestureAction, boolean>;
+  animation: GestureAnimation;
+  cursorColor: string;
+  clickColor: string;
+  dragColor: string;
+  scrollColor: string;
+  cursorSize: number;
+  effectSize: number;
+  trailWidth: number;
+  durationMs: number;
+  opacity: number;
+}
+
+export interface GestureClip {
+  id: string;
+  sourceStartMs: number;
+  sourceEndMs: number;
+  timelineStartMs: number;
+  settings: GestureSettings;
+}
 
 export interface ClipVisualSettings {
   frameStyle: FrameStyle;
@@ -120,6 +145,7 @@ export interface TimelineAssetSource {
 export interface EditorSettings {
   clips: EditorClip[];
   timelineMedia: TimelineMediaItem[];
+  gestureClips: GestureClip[];
   timelineLimitMs: number;
   frameStyle: FrameStyle;
   borderShape: BorderShape;
@@ -251,9 +277,30 @@ export function getTimelineItemDurationMs(item: Pick<TimelineMediaItem, 'sourceS
   return Math.max(0, item.sourceEndMs - item.sourceStartMs);
 }
 
-export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = []): number {
+export function getGestureClipDurationMs(clip: GestureClip): number {
+  return Math.max(0, clip.sourceEndMs - clip.sourceStartMs);
+}
+
+export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = [], gestureClips: GestureClip[] = []): number {
   const clipEnd = clips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getClipDurationMs(clip)), 0);
-  return timelineMedia.reduce((duration, item) => Math.max(duration, item.timelineStartMs + getTimelineItemDurationMs(item)), clipEnd);
+  const mediaEnd = timelineMedia.reduce((duration, item) => Math.max(duration, item.timelineStartMs + getTimelineItemDurationMs(item)), clipEnd);
+  return gestureClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getGestureClipDurationMs(clip)), mediaEnd);
+}
+
+export function createDefaultGestureSettings(): GestureSettings {
+  return {
+    enabled: { pointer: true, click: true, 'double-click': true, drag: true, scroll: true },
+    animation: 'ripple',
+    cursorColor: '#18324a',
+    clickColor: '#328fdf',
+    dragColor: '#ed674e',
+    scrollColor: '#fffdf8',
+    cursorSize: 18,
+    effectSize: 54,
+    trailWidth: 5,
+    durationMs: 650,
+    opacity: 90,
+  };
 }
 
 export function createDefaultMeshPoints(): MeshPoint[] {
@@ -269,6 +316,7 @@ export function createInitialSettings(durationMs: number): EditorSettings {
   return {
     clips: [{ id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: Math.max(durationMs, 100), timelineStartMs: 0 }],
     timelineMedia: [],
+    gestureClips: [],
     timelineLimitMs: Math.max(durationMs, 1_000),
     frameStyle: 'default',
     borderShape: 'curved',

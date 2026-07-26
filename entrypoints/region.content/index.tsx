@@ -1,5 +1,6 @@
 import ReactDOM, { type Root } from 'react-dom/client';
 import type { ContentScriptUi } from 'wxt/utils/content-script-ui/types';
+import { startInteractionTracking } from '../shared/recording/interactions';
 import type { CropArea, RecorderRuntimeMessage, RecordingSessionState } from '../shared/recording/types';
 import { CropGuide } from './CropGuide';
 import { RecordingPanel } from './RecordingPanel';
@@ -42,6 +43,23 @@ export default defineContentScript({
     let controlsSessionId = '';
     let controlsState: RecordingSessionState = { status: 'choosing', elapsedMs: 0 };
     let controlsArea: CropArea | undefined;
+    let stopInteractionTracking: (() => void) | undefined;
+
+    const stopTracking = () => {
+      stopInteractionTracking?.();
+      stopInteractionTracking = undefined;
+    };
+
+    const startTracking = () => {
+      if (stopInteractionTracking || !controlsSessionId) return;
+      stopInteractionTracking = startInteractionTracking((event) => {
+        void browser.runtime.sendMessage({
+          type: 'interaction-event',
+          sessionId: controlsSessionId,
+          event,
+        } satisfies RecorderRuntimeMessage).catch(() => undefined);
+      });
+    };
 
     const renderControls = () => {
       if (!controlsRoot || !controlsSessionId) return;
@@ -106,6 +124,8 @@ export default defineContentScript({
       if (request.type === 'update-recorder-controls' || request.type === 'recorder-state') {
         if (request.sessionId !== controlsSessionId) return;
         controlsState = request.state;
+        if (request.state.status === 'recording') startTracking();
+        if (request.state.status !== 'recording') stopTracking();
         if (request.state.status === 'idle') {
           controlsUi?.remove();
           controlsUi = undefined;
@@ -119,6 +139,7 @@ export default defineContentScript({
 
       if (request.type === 'hide-recorder-controls') {
         if (request.sessionId !== controlsSessionId) return;
+        stopTracking();
         controlsUi?.remove();
         controlsUi = undefined;
         controlsSessionId = '';
@@ -167,6 +188,7 @@ export default defineContentScript({
     browser.runtime.onMessage.addListener(handleMessage);
     ctx.onInvalidated(() => {
       browser.runtime.onMessage.removeListener(handleMessage);
+      stopTracking();
       controlsUi?.remove();
     });
   },

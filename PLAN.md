@@ -88,6 +88,9 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Share frame, border, shape, and shadow settings across recording, uploaded video, and uploaded image items, and keep video end handles unobstructed when extending placements
 - [x] Control uploaded audio volume and add optional per-clip fade-in and fade-out envelopes
 - [ ] Control microphone and captured-audio volume
+- [x] Persist pause-aware page interaction metadata for pointer movement, clicks, double-clicks, drags, and scrolling alongside each recording
+- [x] Add movable and trimmable gesture-effect clips with per-action toggles and customizable cursor, click, drag, and scroll animations
+- [ ] Add automatic zoom effects driven by recorded interactions
 - [ ] Add simple text, blur, and spotlight annotations
 - [ ] Add undo and redo
 
@@ -144,3 +147,5 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Make adaptive shadows derive their tint from the active background and their direction from a direct-manipulation light control.
 - 2026-07-26: Treat canvas and background controls as project-wide, show frame/border/shadow controls only for recording clips, and expose transform, opacity, volume, and hold-last-frame settings only where the selected uploaded media type supports them.
 - 2026-07-26: Keep the Area selector declaratively registered, but reinject its generated content-script bundle with the Scripting API when an already-open tab has no receiver after an extension install or reload.
+- 2026-07-26: Capture privacy-limited DOM interaction metadata in the originating webpage content script, timestamp it against the recorder host's pause-aware media clock, and persist it with the recording blob. Browser security limits window/monitor recordings to interactions observable in that originating webpage; Rio does not capture typed text or interactions in other applications and restricted browser UI.
+- 2026-07-26: Model recorded gestures as independently movable and trimmable editor effect clips. Keep source interaction data immutable, map it through recording trims/splits/timeline positions, and use one Remotion gesture renderer for preview and export.
