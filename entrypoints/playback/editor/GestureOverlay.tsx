@@ -1,8 +1,8 @@
 import { MousePointer2 } from 'lucide-react';
-import { interpolate, useCurrentFrame } from 'remotion';
+import { interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import type { EditorClip, GestureAction, GestureClip, MediaTransform } from './types';
-import { FPS, getClipDurationMs, getClipMediaTransform } from './types';
+import { getClipMediaTransform } from './types';
 
 interface ProjectedEvent extends RecordedInteraction {
   timelineMs: number;
@@ -68,7 +68,8 @@ function Effect({ event, ageMs, clip }: { event: ProjectedEvent; ageMs: number; 
 }
 
 export function GestureOverlay({ gestureClips, interactions, clips, crop, canvasWidth, canvasHeight, sourceWidth, sourceHeight, media }: { gestureClips: GestureClip[]; interactions: RecordedInteraction[]; clips: EditorClip[]; crop?: CropArea; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; media: MediaTransform }) {
-  const timelineMs = useCurrentFrame() / FPS * 1_000;
+  const { fps } = useVideoConfig();
+  const timelineMs = useCurrentFrame() / fps * 1_000;
 
   return gestureClips.map((gestureClip) => {
     const duration = gestureClip.sourceEndMs - gestureClip.sourceStartMs;

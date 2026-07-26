@@ -1,30 +1,33 @@
 import { fetchFile } from '@ffmpeg/util';
 import { canRenderMediaOnWeb, renderMediaOnWeb } from '@remotion/web-renderer';
 import { getFfmpeg, loadFfmpeg } from '../../shared/utils/ffmpeg';
-import type { ExportFormat } from './types';
-import { FPS, getEditedDurationMs } from './types';
+import type { ExportFormat, ExportSettings } from './types';
+import { getEditedDurationMs, getExportDimensions } from './types';
 import { VideoComposition, type VideoCompositionProps } from './VideoComposition';
 
 interface ExportOptions {
   props: VideoCompositionProps;
   format: ExportFormat;
+  settings: ExportSettings;
   onProgress: (progress: number) => void;
 }
 
 const CORE_URL = new URL('/ffmpeg/ffmpeg-core.js', window.location.href).href;
 const WASM_URL = new URL('/ffmpeg/ffmpeg-core.wasm', window.location.href).href;
 
-async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 'mp4', onProgress: (progress: number) => void): Promise<Blob> {
+async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 'mp4', settings: ExportSettings, onProgress: (progress: number) => void): Promise<Blob> {
   const projectDurationMs = Math.max(
     getEditedDurationMs(props.clips, props.timelineMedia, props.gestureClips),
     props.timelineLimitMs,
   );
-  const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
+  const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * settings.fps));
+  const dimensions = getExportDimensions(props.canvas, settings.quality);
+  const renderProps = { ...props, renderScale: dimensions.width / props.canvas.width };
   const availability = await canRenderMediaOnWeb({
     container: format,
     videoCodec: format === 'mp4' ? 'h264' : 'vp9',
-    width: props.canvas.width,
-    height: props.canvas.height,
+    width: dimensions.width,
+    height: dimensions.height,
     transparent: props.background.type === 'transparent' && format === 'webm',
   });
   if (!availability.canRender) {
@@ -36,12 +39,12 @@ async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 
       id: 'rio-editor-export',
       component: VideoComposition,
       durationInFrames,
-      fps: FPS,
-      width: props.canvas.width,
-      height: props.canvas.height,
-      defaultProps: props,
+      fps: settings.fps,
+      width: dimensions.width,
+      height: dimensions.height,
+      defaultProps: renderProps,
     },
-    inputProps: props,
+    inputProps: renderProps,
     container: format,
     videoCodec: format === 'mp4' ? 'h264' : 'vp9',
     videoBitrate: 'high',
@@ -53,7 +56,7 @@ async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 
   return getBlob();
 }
 
-async function convertToGif(video: Blob, onProgress: (progress: number) => void): Promise<Blob> {
+async function convertToGif(video: Blob, settings: ExportSettings, onProgress: (progress: number) => void): Promise<Blob> {
   const ffmpeg = await loadFfmpeg({ coreURL: CORE_URL, wasmURL: WASM_URL });
   const input = 'rio-styled.webm';
   const output = 'rio-output.gif';
@@ -64,7 +67,7 @@ async function convertToGif(video: Blob, onProgress: (progress: number) => void)
     await ffmpeg.writeFile(input, await fetchFile(video));
     const exitCode = await ffmpeg.exec([
       '-i', input,
-      '-vf', "fps=12,scale='min(960,iw)':-2:flags=lanczos,split[g0][g1];[g0]palettegen=max_colors=192[p];[g1][p]paletteuse=dither=sierra2_4a",
+      '-vf', `fps=${settings.fps},split[g0][g1];[g0]palettegen=max_colors=192[p];[g1][p]paletteuse=dither=sierra2_4a`,
       '-loop', '0', output,
     ]);
     if (exitCode !== 0) throw new Error('FFmpeg could not create the GIF.');
@@ -79,16 +82,16 @@ async function convertToGif(video: Blob, onProgress: (progress: number) => void)
   }
 }
 
-export async function exportRecording({ props, format, onProgress }: ExportOptions): Promise<Blob> {
+export async function exportRecording({ props, format, settings, onProgress }: ExportOptions): Promise<Blob> {
   onProgress(0);
   const renderFormat = format === 'gif' ? 'webm' : format;
-  const video = await renderStyledVideo(props, renderFormat, onProgress);
+  const video = await renderStyledVideo(props, renderFormat, settings, onProgress);
   if (format !== 'gif') {
     onProgress(1);
     return video;
   }
 
-  const gif = await convertToGif(video, onProgress);
+  const gif = await convertToGif(video, settings, onProgress);
   onProgress(1);
   return gif;
 }

@@ -13,6 +13,12 @@ export type FrameStyle =
 export type BorderShape = 'curved' | 'rounded' | 'sharp';
 export type ShadowStyle = 'none' | 'spread' | 'huge' | 'adaptive';
 export type ExportFormat = 'webm' | 'mp4' | 'gif';
+export type ExportQuality = '4k' | '1440p' | '1080p' | '720p' | '480p';
+export type ExportFps = 15 | 24 | 30 | 60;
+export interface ExportSettings {
+  quality: ExportQuality;
+  fps: ExportFps;
+}
 export type BackgroundType = 'transparent' | 'solid' | 'gradient' | 'radiant' | 'mesh' | 'image';
 export type CanvasRatio = '16:9' | '4:3' | '1:1' | '9:16' | 'custom';
 export type NoiseType = 'grain' | 'paper' | 'dots' | 'scanlines';
@@ -170,6 +176,24 @@ export interface BackgroundVariant {
 }
 
 export const FPS = 30;
+export const DEFAULT_EXPORT_SETTINGS: ExportSettings = { quality: '1080p', fps: 30 };
+export const EXPORT_QUALITY_OPTIONS: Array<{ value: ExportQuality; label: string; longEdge: number }> = [
+  { value: '4k', label: '4K', longEdge: 3840 },
+  { value: '1440p', label: '1440p', longEdge: 2560 },
+  { value: '1080p', label: '1080p', longEdge: 1920 },
+  { value: '720p', label: '720p', longEdge: 1280 },
+  { value: '480p', label: '480p', longEdge: 854 },
+];
+export const EXPORT_FPS_OPTIONS: ExportFps[] = [15, 24, 30, 60];
+
+export function getExportDimensions(canvas: Pick<CanvasSettings, 'width' | 'height'>, quality: ExportQuality): { width: number; height: number } {
+  const preset = EXPORT_QUALITY_OPTIONS.find((option) => option.value === quality) ?? EXPORT_QUALITY_OPTIONS[2];
+  const safeWidth = Math.max(1, canvas.width);
+  const safeHeight = Math.max(1, canvas.height);
+  const scale = preset.longEdge / Math.max(safeWidth, safeHeight);
+  const makeEven = (value: number) => Math.max(2, Math.round(value / 2) * 2);
+  return { width: makeEven(safeWidth * scale), height: makeEven(safeHeight * scale) };
+}
 
 export const GRADIENT_VARIANTS: BackgroundVariant[] = [
   { id: 0, label: 'Drift', preview: (a, b) => `linear-gradient(135deg, ${a}, ${b})` },

@@ -6,11 +6,12 @@ import { formatDuration } from '../shared/recording/media';
 import { deleteEditorAsset, getEditorAssets, getEditorProject, getRecording, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
 import { EditorSidebar } from './components/EditorSidebar';
 import { ExportMenu } from './components/ExportMenu';
+import { ExportSettingsMenu } from './components/ExportSettingsMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
 import { exportRecording } from './editor/export';
 import { useEditorStore } from './editor/store';
-import { createDefaultGestureSettings, createDefaultMeshPoints, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
+import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
 import { VideoComposition } from './editor/VideoComposition';
 
 function getAssetType(mimeType: string): TimelineMediaType | undefined {
@@ -88,6 +89,19 @@ function getSerializableProject(): EditorSettings {
   };
 }
 
+const EXPORT_SETTINGS_KEY = 'rio-export-settings';
+
+function getSavedExportSettings(): ExportSettings {
+  try {
+    const saved = JSON.parse(localStorage.getItem(EXPORT_SETTINGS_KEY) ?? '') as Partial<ExportSettings>;
+    const quality = EXPORT_QUALITY_OPTIONS.some((option) => option.value === saved.quality) ? saved.quality : DEFAULT_EXPORT_SETTINGS.quality;
+    const fps = EXPORT_FPS_OPTIONS.includes(saved.fps as ExportSettings['fps']) ? saved.fps as ExportSettings['fps'] : DEFAULT_EXPORT_SETTINGS.fps;
+    return { quality, fps } as ExportSettings;
+  } catch {
+    return DEFAULT_EXPORT_SETTINGS;
+  }
+}
+
 function downloadBlob(blob: Blob, recording: StoredRecording, extension: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -103,6 +117,7 @@ function App() {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [format, setFormat] = useState<ExportFormat>('webm');
+  const [exportSettings, setExportSettings] = useState<ExportSettings>(getSavedExportSettings);
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -185,6 +200,10 @@ function App() {
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
   }, [videoUrl]);
+
+  useEffect(() => {
+    localStorage.setItem(EXPORT_SETTINGS_KEY, JSON.stringify(exportSettings));
+  }, [exportSettings]);
 
   useEffect(() => {
     assetSourcesRef.current = assetSources;
@@ -337,7 +356,7 @@ function App() {
     setError(undefined);
     setNotice(undefined);
     try {
-      const blob = await exportRecording({ props: inputProps, format, onProgress: setProgress });
+      const blob = await exportRecording({ props: inputProps, format, settings: exportSettings, onProgress: setProgress });
       downloadBlob(blob, recording, format);
       setNotice(`${format.toUpperCase()} export is ready.`);
     } catch (reason: unknown) {
@@ -359,7 +378,10 @@ function App() {
           <span className="hidden h-5 w-px bg-border sm:block" />
           <div className="hidden sm:block"><p className="text-xs font-semibold">Recording complete</p><p className="text-[10px] text-muted">{recording ? formatDuration(recording.durationMs) : 'Loading…'}</p></div>
         </div>
-        <ExportMenu format={format} busy={exporting} progress={progress} onFormatChange={setFormat} onExport={runExport} />
+        <div className="flex items-center gap-2">
+          <ExportSettingsMenu settings={exportSettings} canvas={settings.canvas} disabled={exporting} onChange={setExportSettings} />
+          <ExportMenu format={format} busy={exporting} progress={progress} onFormatChange={setFormat} onExport={runExport} />
+        </div>
       </header>
 
       {error && <div role="alert" className="flex items-center gap-2 border-b border-accent-200 bg-accent-50 px-4 py-2 text-xs text-danger"><AlertCircle className="size-4" />{error}</div>}

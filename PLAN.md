@@ -103,7 +103,7 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Export styled WebM through Remotion's browser renderer
 - [x] Export styled MP4 where WebCodecs support permits
 - [x] Export styled animated GIF through FFmpeg WASM
-- [ ] Add output resolution and quality presets
+- [x] Add aspect-ratio-aware output resolution presets from 480p through 4K and selectable export frame rates
 - [x] Download exported files
 - [ ] Add sharing destinations
 - [ ] Handle large recordings without exhausting memory
@@ -149,3 +149,4 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Keep the Area selector declaratively registered, but reinject its generated content-script bundle with the Scripting API when an already-open tab has no receiver after an extension install or reload.
 - 2026-07-26: Capture privacy-limited DOM interaction metadata in the originating webpage content script, timestamp it against the recorder host's pause-aware media clock, and persist it with the recording blob. Browser security limits window/monitor recordings to interactions observable in that originating webpage; Rio does not capture typed text or interactions in other applications and restricted browser UI.
 - 2026-07-26: Model recorded gestures as independently movable and trimmable editor effect clips. Keep source interaction data immutable, map it through recording trims/splits/timeline positions, and use one Remotion gesture renderer for preview and export.
+- 2026-07-26: Keep the editor preview at 30 FPS while allowing export-only resolution and frame-rate presets. Derive Remotion timeline timing from the active composition FPS and scale the project canvas proportionally at render time so export quality does not alter the editable canvas.
