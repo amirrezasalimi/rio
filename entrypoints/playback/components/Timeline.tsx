@@ -2,30 +2,30 @@ import {
   ChevronLeft,
   ChevronRight,
   GripVertical,
-  Minus,
-  Plus,
+
   RotateCcw,
   Scissors,
-  Trash2,
 } from 'lucide-react';
-import type { CSSProperties } from 'react';
+
 import { useEffect, useRef, useState } from 'react';
 import { formatDuration } from '../../shared/recording/media';
+import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../editor/clipActions';
 import { useEditorStore } from '../editor/store';
-import type { EditorClip, TimelineAssetSource } from '../editor/types';
-import { getClipDurationMs, getEditedDurationMs } from '../editor/types';
+import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
+import type { EditorClip, GestureClip, TimelineAssetSource } from '../editor/types';
+import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs } from '../editor/types';
+import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
+import { TextTimelineLane } from './TextTimelineLane';
+import { TimelineZoomControls } from './TimelineZoomControls';
 
 const MIN_CLIP_MS = 150;
 const SNAP_MS = 50;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 16;
 const ZOOM_STEP = 0.5;
-function locateSourceTime(
-  clips: EditorClip[],
-  editedTimeMs: number,
-): { clipIndex: number; sourceTimeMs: number } | undefined {
+function locateSourceTime(clips: EditorClip[], editedTimeMs: number): { clipIndex: number; sourceTimeMs: number } | undefined {
   for (let index = clips.length - 1; index >= 0; index -= 1) {
     const clip = clips[index];
     const length = getClipDurationMs(clip);
@@ -70,8 +70,13 @@ export function Timeline({
   const setClips = useEditorStore((state) => state.setClips);
   const timelineMedia = useEditorStore((state) => state.timelineMedia);
   const gestureClips = useEditorStore((state) => state.gestureClips);
+  const textClips = useEditorStore((state) => state.textClips);
+  const setGestureClips = useEditorStore((state) => state.setGestureClips);
+  const setTextClips = useEditorStore((state) => state.setTextClips);
   const setTimelineMedia = useEditorStore((state) => state.setTimelineMedia);
   const selection = useEditorStore((state) => state.selectedTimelineItem);
+  const selectedItems = useEditorStore((state) => state.selectedTimelineItems);
+  const selectItem = useEditorStore((state) => state.selectTimelineItem);
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
   const [zoom, setZoom] = useState(1);
   const [lockedDragDurationMs, setLockedDragDurationMs] = useState<number>();
@@ -81,9 +86,11 @@ export function Timeline({
   });
   const timelineLimitMs = useEditorStore((state) => state.timelineLimitMs);
   const setTimelineLimitMs = useEditorStore((state) => state.setTimelineLimitMs);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const editedRecordingDurationMs = getEditedDurationMs(clips);
-  const contentDurationMs = getEditedDurationMs(clips, timelineMedia, gestureClips);
+  const contentDurationMs = getEditedDurationMs(clips, timelineMedia, gestureClips, textClips);
   const projectDurationMs = Math.max(timelineLimitMs, contentDurationMs, 1_000);
   const trailingEditSpaceMs = Math.max(5_000, projectDurationMs * 0.2);
   // Keep empty space after the final item so an end handle never sits against
@@ -93,10 +100,38 @@ export function Timeline({
   useEffect(() => {
     if (timelineLimitMs < sourceDurationMs) setTimelineLimitMs(sourceDurationMs);
   }, [sourceDurationMs, timelineLimitMs, setTimelineLimitMs]);
+  useEffect(() => {
+    const track = viewportRef.current;
+    if (!track) return;
+    const zoomTimeline = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      setZoom((current) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, current * Math.exp(-event.deltaY * 0.01))));
+    };
+    track.addEventListener('wheel', zoomTimeline, { passive: false });
+    return () => track.removeEventListener('wheel', zoomTimeline);
+  }, []);
   const selectedId = selection?.kind === 'recording' ? selection.id : undefined;
   const selectedIndex = clips.findIndex((clip) => clip.id === selectedId);
   const setSafeZoom = (value: number) =>
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)));
+
+  const addOriginal = () => {
+    const clip: EditorClip = { id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: Math.max(sourceDurationMs, MIN_CLIP_MS), timelineStartMs: currentTimeMs };
+    setClips((current) => [...current, clip]);
+    setSelection({ kind: 'recording', id: clip.id });
+  };
+  const addText = () => {
+    const clip = createDefaultTextClip(currentTimeMs);
+    setTextClips((current) => [...current, clip]);
+    setSelection({ kind: 'text', id: clip.id });
+  };
+  const addGesture = () => {
+    if (interactionCount === 0 || editedRecordingDurationMs < MIN_CLIP_MS) return;
+    const clip: GestureClip = { id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: editedRecordingDurationMs, timelineStartMs: 0, settings: createDefaultGestureSettings() };
+    setGestureClips((current) => [...current, clip]);
+    setSelection({ kind: 'gesture', id: clip.id });
+  };
 
   const resetCuts = () => {
     const restored = {
@@ -115,9 +150,14 @@ export function Timeline({
   const moveOrder = (direction: -1 | 1) => {
     const target = selectedIndex + direction;
     if (selectedIndex < 0 || target < 0 || target >= clips.length) return;
-    const next = [...clips];
-    [next[selectedIndex], next[target]] = [next[target], next[selectedIndex]];
-    setClips(next);
+    setClips((current) => {
+      const currentIndex = current.findIndex((clip) => clip.id === selectedId);
+      const currentTarget = currentIndex + direction;
+      if (currentIndex < 0 || currentTarget < 0 || currentTarget >= current.length) return current;
+      const next = [...current];
+      [next[currentIndex], next[currentTarget]] = [next[currentTarget], next[currentIndex]];
+      return next;
+    });
   };
 
   const split = () => {
@@ -159,22 +199,25 @@ export function Timeline({
     const bounds = trackRef.current?.getBoundingClientRect();
     if (!bounds) return;
 
-    setSelection({ kind: 'recording', id: clips[index].id });
-    const startX = event.clientX;
     const initial = clips[index];
+    const itemSelection = { kind: 'recording' as const, id: initial.id };
+    const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
+    if (event.shiftKey) selectItem(itemSelection, true);
+    else if (!alreadySelected) selectItem(itemSelection, false);
+    const initialStarts = captureSelectedTimelineStarts();
+    const minimumStart = Math.min(...initialStarts.values());
+    const startX = event.clientX;
     const pixelsPerMs = bounds.width / timelineDurationMs;
 
     const onMove = (moveEvent: PointerEvent) => {
       const delta = snap((moveEvent.clientX - startX) / pixelsPerMs);
-      setClips(
-        clips.map((clip, clipIndex) => {
-          if (clipIndex !== index) return clip;
-          if (interaction === 'clip') {
-            return {
-              ...clip,
-              timelineStartMs: Math.max(0, initial.timelineStartMs + delta),
-            };
-          }
+      if (interaction === 'clip') {
+        moveSelectedTimelineItems(Math.max(-minimumStart, delta), initialStarts);
+        return;
+      }
+      setClips((current) =>
+        current.map((clip) => {
+          if (clip.id !== initial.id) return clip;
           if (interaction === 'start') {
             const sourceStartMs = Math.max(
               0,
@@ -217,7 +260,7 @@ export function Timeline({
     if ((event.target as HTMLElement).closest('[data-clip]')) return;
     event.preventDefault();
     event.stopPropagation();
-    const bounds = trackRef.current?.getBoundingClientRect();
+    const bounds = contentRef.current?.getBoundingClientRect();
     if (!bounds) return;
 
     const update = (clientX: number) =>
@@ -283,6 +326,11 @@ export function Timeline({
             onItemsChange={setTimelineMedia}
             onUpload={onUploadMedia}
             onDeleteAsset={onDeleteAsset}
+            onAddGesture={addGesture}
+            onAddOriginal={addOriginal}
+            onAddText={addText}
+            onSplitClip={split}
+            canAddGesture={interactionCount > 0}
           />
           <label className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2 py-1 text-[9px] font-semibold text-muted">
             Max time
@@ -303,48 +351,7 @@ export function Timeline({
             />
             <span>s</span>
           </label>
-          <div className="flex items-center rounded-xl border border-border bg-cream-50 p-1">
-            <button
-              type="button"
-              aria-label="Zoom timeline out"
-              disabled={zoom <= MIN_ZOOM}
-              onClick={() => setSafeZoom(zoom - ZOOM_STEP)}
-              className="rounded-lg p-1.5 hover:bg-surface disabled:opacity-25"
-            >
-              <Minus className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              title="Fit timeline"
-              onClick={() => setSafeZoom(1)}
-              className="min-w-11 rounded-lg px-1.5 py-1 text-center font-mono text-[9px] font-semibold hover:bg-surface"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <input
-              aria-label="Timeline zoom"
-              title="Timeline zoom"
-              type="range"
-              min={MIN_ZOOM}
-              max={MAX_ZOOM}
-              step={ZOOM_STEP}
-              value={zoom}
-              onChange={(event) => setSafeZoom(event.currentTarget.valueAsNumber)}
-              className="rio-range w-24"
-              style={{
-                '--rio-range-progress': `${((zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 100}%`,
-              } as CSSProperties}
-            />
-            <button
-              type="button"
-              aria-label="Zoom timeline in"
-              disabled={zoom >= MAX_ZOOM}
-              onClick={() => setSafeZoom(zoom + ZOOM_STEP)}
-              className="rounded-lg p-1.5 hover:bg-surface disabled:opacity-25"
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </div>
+          <TimelineZoomControls zoom={zoom} min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} onChange={setSafeZoom} />
 
           <div className="flex items-center rounded-xl border border-border bg-cream-50 p-1">
             <button
@@ -382,25 +389,13 @@ export function Timeline({
             >
               <ChevronRight className="size-3.5" />
             </button>
-            <button
-              type="button"
-              aria-label="Delete selected clip"
-              disabled={selectedIndex < 0 || clips.length === 1}
-              onClick={() => {
-                const next = clips.filter((clip) => clip.id !== selectedId);
-                setClips(next);
-                setSelection(next[0] ? { kind: 'recording', id: next[0].id } : undefined);
-              }}
-              className="rounded-lg p-1.5 text-danger hover:bg-accent-50 disabled:opacity-25"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
+
           </div>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-border bg-cream-100">
-        <div className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}> 
+      <div ref={viewportRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-border bg-cream-100">
+        <div ref={contentRef} className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}>
           <div className="sticky top-0 z-40 flex h-6 shrink-0 items-end justify-between border-b border-border/70 bg-cream-100 px-2 pb-1 font-mono text-[8px] text-muted">
             <span>00:00</span>
             <span>{timeLabel(timelineDurationMs * 0.25)}</span>
@@ -429,14 +424,14 @@ export function Timeline({
           >
             <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent-500 shadow-[0_0_0_1px_rgba(255,255,255,.85)]" />
           </div>
-          <div
+          {clips.length > 0 && <div
             ref={trackRef}
             onPointerDown={seekFromPointer}
             className="relative h-[74px] min-h-[74px] max-h-[74px] shrink-0 cursor-crosshair bg-[linear-gradient(90deg,transparent_0,transparent_calc(25%-1px),var(--color-border)_25%,transparent_calc(25%+1px),transparent_calc(50%-1px),var(--color-border)_50%,transparent_calc(50%+1px),transparent_calc(75%-1px),var(--color-border)_75%,transparent_calc(75%+1px))] p-1.5"
           >
             {clips.map((clip, index) => {
               const clipDuration = getClipDurationMs(clip);
-              const selected = clip.id === selectedId;
+              const selected = selectedItems.some((item) => item.kind === 'recording' && item.id === clip.id);
               return (
                 <div
                   data-clip
@@ -445,8 +440,8 @@ export function Timeline({
                   tabIndex={0}
                   aria-label={`Clip ${index + 1}`}
                   onPointerDown={(event) => startDrag(event, index, 'clip')}
-                  onClick={() => setSelection({ kind: 'recording', id: clip.id })}
-                  className={`group absolute bottom-1.5 top-1.5 max-h-[62px] min-w-14 cursor-grab touch-none overflow-hidden rounded-lg border-2 text-left transition active:cursor-grabbing ${
+                  onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'recording', id: clip.id }, event.shiftKey); }}
+                  className={`group absolute bottom-1.5 top-1.5 max-h-[62px] min-w-14 cursor-grab touch-none rounded-lg border-2 text-left transition active:cursor-grabbing ${
                     selected
                       ? 'border-primary-600 shadow-[0_0_0_2px_rgba(50,143,223,.18)]'
                       : 'border-primary-200 hover:border-primary-400'
@@ -458,7 +453,7 @@ export function Timeline({
                       'linear-gradient(145deg, var(--color-primary-100), var(--color-primary-300))',
                   }}
                 >
-                  <div className="absolute inset-0 opacity-40 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_17px,rgba(255,255,255,.9)_18px)]" />
+                  <div className="absolute inset-0 overflow-hidden rounded-md opacity-40 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_17px,rgba(255,255,255,.9)_18px)]" />
                   <button
                     type="button"
                     aria-label={`Trim start of clip ${index + 1}`}
@@ -481,12 +476,13 @@ export function Timeline({
                   <span className="pointer-events-none absolute bottom-2 left-6 font-mono text-[8px] font-semibold text-primary-950">
                     {timeLabel(clipDuration)}
                   </span>
+                  <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
                 </div>
               );
             })}
-
-          </div>
-          <GestureTimelineLane editedRecordingDurationMs={editedRecordingDurationMs} timelineDurationMs={timelineDurationMs} interactionCount={interactionCount} onDragStateChange={setLockedDragDurationMs} />
+          </div>}
+          <TextTimelineLane timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
+          <GestureTimelineLane editedRecordingDurationMs={editedRecordingDurationMs} timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
           <MediaTimelineLane
             items={timelineMedia}
             timelineDurationMs={timelineDurationMs}

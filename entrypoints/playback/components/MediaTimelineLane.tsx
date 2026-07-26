@@ -3,17 +3,24 @@ import {
   FileImage,
   FileVideo,
   GripVertical,
+  ImagePlus,
+  MousePointerClick,
   Plus,
+  Scissors,
   Trash2,
+  Type,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../editor/clipActions';
 import { useEditorStore } from '../editor/store';
+import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
 import type {
   TimelineAssetSource,
   TimelineMediaItem,
   TimelineMediaType,
 } from '../editor/types';
 import { getTimelineItemDurationMs } from '../editor/types';
+import { ClipContextMenu } from './ClipContextMenu';
 
 const MIN_ITEM_MS = 150;
 const SNAP_MS = 50;
@@ -26,6 +33,11 @@ interface MediaLibraryProps {
   onItemsChange: (items: TimelineMediaItem[]) => void;
   onUpload: (files: FileList) => void;
   onDeleteAsset: (assetId: string) => void;
+  onAddGesture: () => void;
+  onAddOriginal: () => void;
+  onAddText: () => void;
+  onSplitClip: () => void;
+  canAddGesture: boolean;
 }
 
 interface MediaTimelineLaneProps {
@@ -87,9 +99,15 @@ export function MediaLibrary({
   onItemsChange,
   onUpload,
   onDeleteAsset,
+  onAddGesture,
+  onAddOriginal,
+  onAddText,
+  onSplitClip,
+  canAddGesture,
 }: MediaLibraryProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
 
@@ -141,8 +159,19 @@ export function MediaLibrary({
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[10px] font-semibold transition hover:border-primary-300 hover:bg-primary-50"
       >
-        <Plus className="size-3.5" /> Add media
+        <Plus className="size-3.5" /> Add item
       </button>
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          if (event.currentTarget.files?.length) onUpload(event.currentTarget.files);
+          event.currentTarget.value = '';
+          setOpen(false);
+        }}
+      />
       <input
         ref={inputRef}
         type="file"
@@ -160,20 +189,17 @@ export function MediaLibrary({
 
       {open && (
         <div className="absolute right-0 top-[calc(100%+8px)] z-[70] w-72 rounded-2xl border border-border bg-surface p-2 shadow-2xl shadow-ink/15">
-          <div className="mb-2 flex items-center justify-between px-1">
-            <div>
-              <p className="text-[10px] font-semibold">Project media</p>
-              <p className="text-[8px] text-muted">Add at the current playhead</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="rounded-lg bg-primary-500 px-2 py-1 text-[9px] font-semibold text-white hover:bg-primary-600"
-            >
-              Upload
-            </button>
+          <div className="mb-2 px-1"><p className="text-[10px] font-semibold">Add item</p><p className="text-[8px] text-muted">Place it at the current playhead</p></div>
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><FileVideo className="size-3.5 text-primary-600" /> Media</button>
+            <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><ImagePlus className="size-3.5 text-primary-600" /> Image</button>
+            <button type="button" disabled={!canAddGesture} onClick={() => { onAddGesture(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300 disabled:opacity-40"><MousePointerClick className="size-3.5 text-primary-600" /> Gestures</button>
+            <button type="button" onClick={() => { onSplitClip(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Scissors className="size-3.5 text-primary-600" /> Split clip</button>
+            <button type="button" onClick={() => { onAddText(); setOpen(false); }} className="col-span-2 flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Type className="size-3.5 text-primary-600" /> Text</button>
           </div>
-          <div className="max-h-48 space-y-1 overflow-y-auto">
+          <p className="mb-1 px-1 text-[8px] font-semibold uppercase tracking-wide text-muted">Project media</p>
+          <div className="max-h-36 space-y-1 overflow-y-auto">
+            <button type="button" onClick={() => { onAddOriginal(); setOpen(false); }} className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 p-1.5 text-left hover:border-primary-400"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-950"><FileVideo className="size-3.5" /></span><span><span className="block text-[9px] font-semibold text-ink">Original recording</span><span className="block text-[8px] text-muted">Permanent source asset</span></span></button>
             {assets.length === 0 && (
               <button
                 type="button"
@@ -209,9 +235,10 @@ export function MediaTimelineLane({
   onDragStateChange,
 }: MediaTimelineLaneProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const selection = useEditorStore((state) => state.selectedTimelineItem);
+  const selectedItems = useEditorStore((state) => state.selectedTimelineItems);
+  const selectItem = useEditorStore((state) => state.selectTimelineItem);
   const setSelection = useEditorStore((state) => state.setSelectedTimelineItem);
-  const selectedId = selection?.kind === 'media' ? selection.id : undefined;
+
 
   const startDrag = (
     event: React.PointerEvent,
@@ -229,15 +256,21 @@ export function MediaTimelineLane({
     const pointerTarget = event.currentTarget as HTMLElement;
     pointerTarget.setPointerCapture(event.pointerId);
     onDragStateChange(timelineDurationMs);
-    setSelection({ kind: 'media', id: initial.id });
+    const itemSelection = { kind: 'media' as const, id: initial.id };
+    const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
+    if (event.shiftKey) selectItem(itemSelection, true);
+    else if (!alreadySelected) selectItem(itemSelection, false);
+    const initialStarts = captureSelectedTimelineStarts();
+    const minimumStart = Math.min(...initialStarts.values());
 
     const onMove = (moveEvent: PointerEvent) => {
       const delta = snap((moveEvent.clientX - startX) / pixelsPerMs);
-      onItemsChange(items.map((item, itemIndex) => {
-        if (itemIndex !== index) return item;
-        if (interaction === 'item') {
-          return { ...item, timelineStartMs: Math.max(0, initial.timelineStartMs + delta) };
-        }
+      if (interaction === 'item') {
+        moveSelectedTimelineItems(Math.max(-minimumStart, delta), initialStarts);
+        return;
+      }
+      onItemsChange(items.map((item) => {
+        if (item.id !== initial.id) return item;
         if (interaction === 'start') {
           const latestSourceStartMs = initial.type === 'image'
             ? initial.sourceEndMs - MIN_ITEM_MS
@@ -287,13 +320,12 @@ export function MediaTimelineLane({
     window.addEventListener('pointercancel', stop, { once: true });
   };
 
+  if (items.length === 0) return null;
+
   return (
     <div ref={trackRef} className="relative shrink-0 border-t border-border/70 bg-surface/60">
-      {items.length === 0 && (
-        <div className="flex h-11 items-center px-3 text-[8px] text-muted">Added media will appear on separate tracks.</div>
-      )}
       {items.map((item, index) => {
-        const selected = item.id === selectedId;
+        const selected = selectedItems.some((selection) => selection.kind === 'media' && selection.id === item.id);
         const extendsPastSource = item.type === 'video' && item.sourceEndMs > item.assetDurationMs;
         return (
           <div key={item.id} className="relative h-12 border-b border-border/60 last:border-b-0">
@@ -309,7 +341,7 @@ export function MediaTimelineLane({
                 role="button"
                 tabIndex={0}
                 onPointerDown={(event) => startDrag(event, index, 'item')}
-                onClick={() => setSelection({ kind: 'media', id: item.id })}
+                onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'media', id: item.id }, event.shiftKey); }}
                 className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border-2 transition-colors active:cursor-grabbing ${TYPE_STYLES[item.type]} ${selected ? 'ring-2 ring-primary-500/25' : ''}`}
               >
                 {item.type === 'audio' && <AudioEnvelope item={item} />}
@@ -323,7 +355,7 @@ export function MediaTimelineLane({
                 type="button"
                 aria-label={`Trim start of ${item.name}`}
                 onPointerDown={(event) => startDrag(event, index, 'start')}
-                className="pointer-events-auto absolute inset-y-0 left-0 z-50 flex w-6 -translate-x-1/2 cursor-ew-resize touch-none items-center justify-center rounded-l-lg bg-ink/70 text-white"
+                className="pointer-events-auto absolute inset-y-0 left-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-l-lg bg-ink/70 text-white"
               >
                 <GripVertical className="size-3" />
               </button>
@@ -332,25 +364,12 @@ export function MediaTimelineLane({
                 aria-label={`Extend or trim end of ${item.name}`}
                 title={item.type === 'video' ? 'Drag to extend past the original video duration' : 'Drag to resize'}
                 onPointerDown={(event) => startDrag(event, index, 'end')}
-                className="pointer-events-auto absolute inset-y-0 right-0 z-50 flex w-6 translate-x-1/2 cursor-ew-resize touch-none items-center justify-center rounded-r-lg bg-ink/70 text-white"
+                className="pointer-events-auto absolute inset-y-0 right-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-r-lg bg-ink/70 text-white"
               >
                 <GripVertical className="size-3" />
               </button>
+              <ClipContextMenu label={item.name} onOpen={() => setSelection({ kind: 'media', id: item.id })} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
             </div>
-            {selected && (
-              <button
-                type="button"
-                onClick={() => {
-                  onItemsChange(items.filter((candidate) => candidate.id !== selectedId));
-                  const firstClip = useEditorStore.getState().clips[0];
-                  setSelection(firstClip ? { kind: 'recording', id: firstClip.id } : undefined);
-                }}
-                className="absolute right-2 top-1.5 z-10 rounded-lg bg-surface p-1.5 text-danger shadow-sm hover:bg-accent-50"
-                aria-label="Remove selected media from timeline"
-              >
-                <Trash2 className="size-3" />
-              </button>
-            )}
           </div>
         );
       })}

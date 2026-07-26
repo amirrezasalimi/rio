@@ -5,6 +5,7 @@ const DATABASE_VERSION = 3;
 const RECORDINGS_STORE = 'recordings';
 const PROJECTS_STORE = 'editor-projects';
 const ASSETS_STORE = 'editor-assets';
+const projectSaveQueues = new Map<string, Promise<void>>();
 
 export interface StoredRecording {
   id: string;
@@ -122,13 +123,33 @@ export async function deleteEditorAsset(id: string): Promise<void> {
   database.close();
 }
 
-export async function saveEditorProject<T>(recordingId: string, settings: T): Promise<void> {
-  const database = await openDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(PROJECTS_STORE, 'readwrite');
-    transaction.objectStore(PROJECTS_STORE).put({ recordingId, settings, updatedAt: Date.now() } satisfies StoredEditorProject<T>);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error('Could not save editor settings.'));
+export function saveEditorProject<T>(recordingId: string, settings: T): Promise<void> {
+  const requestedAt = Date.now();
+  const previous = projectSaveQueues.get(recordingId) ?? Promise.resolve();
+  const save = previous.catch(() => undefined).then(async () => {
+    const database = await openDatabase();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction(PROJECTS_STORE, 'readwrite');
+        const store = transaction.objectStore(PROJECTS_STORE);
+        const currentRequest = store.get(recordingId);
+        currentRequest.onsuccess = () => {
+          const current = currentRequest.result as StoredEditorProject<T> | undefined;
+          if (!current || current.updatedAt <= requestedAt) {
+            store.put({ recordingId, settings, updatedAt: requestedAt } satisfies StoredEditorProject<T>);
+          }
+        };
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error ?? new Error('Could not save editor settings.'));
+      });
+    } finally {
+      database.close();
+    }
   });
-  database.close();
+  projectSaveQueues.set(recordingId, save);
+  const cleanup = () => {
+    if (projectSaveQueues.get(recordingId) === save) projectSaveQueues.delete(recordingId);
+  };
+  void save.then(cleanup, cleanup);
+  return save;
 }

@@ -68,7 +68,7 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Add preview-first frame, shape, background, texture, and shadow controls
 - [x] Make frame preset edges use adjustable stroke width, color, and opacity without adding a separate frame layer
 - [x] Add optional adjustable shadow treatments, including None
-- [x] Add preset and manual canvas sizes with reset controls
+- [x] Add ratio, social-media, and manual canvas size presets with reset controls
 - [x] Add direct centered recorded-media scale/position controls with reset
 - [x] Replace timeline trim sliders with direct draggable clip edges and playhead
 - [x] Preserve timeline gaps and support freely positioned clips
@@ -91,7 +91,12 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Persist pause-aware page interaction metadata for pointer movement, clicks, double-clicks, drags, and scrolling alongside each recording
 - [x] Add movable and trimmable gesture-effect clips with per-action toggles and customizable cursor, click, drag, and scroll animations
 - [ ] Add automatic zoom effects driven by recorded interactions
-- [ ] Add simple text, blur, and spotlight annotations
+- [x] Add movable, rotatable, trimmable text clips with installed-font selection, typography, solid/gradient fills, and strokes
+- [x] Add right-click duplicate/delete context menus and copy, paste, duplicate, and delete keyboard shortcuts for all timeline items
+- [x] Hide empty recording, media, gesture, and text timeline lanes
+- [x] Support Shift multi-selection and synchronized movement across timeline item types
+- [x] Keep the original recording as a permanent Add item source while allowing all recording placements to be removed
+- [ ] Add blur and spotlight annotations
 - [ ] Add undo and redo
 
 ## Phase 7 — Processing and Export
@@ -148,5 +153,7 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Treat canvas and background controls as project-wide, show frame/border/shadow controls only for recording clips, and expose transform, opacity, volume, and hold-last-frame settings only where the selected uploaded media type supports them.
 - 2026-07-26: Keep the Area selector declaratively registered, but reinject its generated content-script bundle with the Scripting API when an already-open tab has no receiver after an extension install or reload.
 - 2026-07-26: Capture privacy-limited DOM interaction metadata in the originating webpage content script, timestamp it against the recorder host's pause-aware media clock, and persist it with the recording blob. Browser security limits window/monitor recordings to interactions observable in that originating webpage; Rio does not capture typed text or interactions in other applications and restricted browser UI.
-- 2026-07-26: Model recorded gestures as independently movable and trimmable editor effect clips. Keep source interaction data immutable, map it through recording trims/splits/timeline positions, and use one Remotion gesture renderer for preview and export.
+- 2026-07-26: Model recorded gestures as independently movable and trimmable editor effect clips. Keep source interaction data immutable, map it through recording trims/splits/timeline positions, and use one Remotion gesture renderer for preview and export. Treat each gesture clip's visible timeline range as an absolute mask over that edited interaction timeline, so gaps suppress effects and later gesture clips continue in sync instead of replaying events from an earlier source offset.
 - 2026-07-26: Keep the editor preview at 30 FPS while allowing export-only resolution and frame-rate presets. Derive Remotion timeline timing from the active composition FPS and scale the project canvas proportionally at render time so export quality does not alter the editable canvas.
+- 2026-07-26: Serialize and version editor-project writes so delayed autosaves, page-hide flushes, and concurrent editor tabs cannot overwrite newer timeline state. Allow an intentionally empty recording track while keeping the immutable original recording available as a permanent source asset.
+- 2026-07-26: Centralize timeline item creation in one Add item menu and map trackpad pinch gestures to horizontal timeline time zoom while preserving ordinary scrolling.

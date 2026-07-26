@@ -1,4 +1,4 @@
-import { Crosshair, Maximize2, RotateCcw, Snowflake } from 'lucide-react';
+import { Crosshair, Maximize2, RotateCcw, Share2, Snowflake } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { CanvasRatio } from '../editor/types';
@@ -11,6 +11,22 @@ const RATIOS: Array<{ value: CanvasRatio; label: string }> = [
   { value: '1:1', label: 'Square' },
   { value: '9:16', label: 'Story' },
 ];
+
+const SOCIAL_PRESETS = [
+  { id: 'instagram-square', platform: 'Instagram', label: 'Square post', width: 1080, height: 1080 },
+  { id: 'instagram-portrait', platform: 'Instagram', label: 'Portrait post', width: 1080, height: 1350 },
+  { id: 'instagram-story', platform: 'Instagram', label: 'Story / Reel', width: 1080, height: 1920 },
+  { id: 'youtube-video', platform: 'YouTube', label: 'Video', width: 1920, height: 1080 },
+  { id: 'youtube-shorts', platform: 'YouTube', label: 'Shorts', width: 1080, height: 1920 },
+  { id: 'tiktok-video', platform: 'TikTok', label: 'Vertical video', width: 1080, height: 1920 },
+  { id: 'facebook-feed', platform: 'Facebook', label: 'Feed landscape', width: 1200, height: 630 },
+  { id: 'facebook-story', platform: 'Facebook', label: 'Story / Reel', width: 1080, height: 1920 },
+  { id: 'x-landscape', platform: 'X', label: 'Landscape post', width: 1600, height: 900 },
+  { id: 'linkedin-landscape', platform: 'LinkedIn', label: 'Landscape post', width: 1200, height: 627 },
+  { id: 'pinterest-pin', platform: 'Pinterest', label: 'Standard pin', width: 1000, height: 1500 },
+] as const;
+
+const SOCIAL_PLATFORMS = [...new Set(SOCIAL_PRESETS.map((preset) => preset.platform))];
 
 export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
   const canvas = useEditorStore((state) => state.canvas);
@@ -37,6 +53,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
   } = useEditorStore.getState();
   const [width, setWidth] = useState(String(canvas.width));
   const [height, setHeight] = useState(String(canvas.height));
+  const [socialPresetId, setSocialPresetId] = useState(() => SOCIAL_PRESETS.find((preset) => preset.width === canvas.width && preset.height === canvas.height)?.id ?? '');
   const [audioFadeUnit, setAudioFadeUnit] = useState<'time' | 'percent'>('time');
 
   const applySize = () => {
@@ -44,7 +61,19 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
     const nextHeight = Number(height);
     if (Number.isFinite(nextWidth) && Number.isFinite(nextHeight)) {
       setCanvasSize(nextWidth, nextHeight);
+      setSocialPresetId('');
     }
+  };
+  const applySocialPreset = (presetId: string) => {
+    const preset = SOCIAL_PRESETS.find((item) => item.id === presetId);
+    if (!preset) {
+      setSocialPresetId('');
+      return;
+    }
+    setCanvasSize(preset.width, preset.height);
+    setWidth(String(preset.width));
+    setHeight(String(preset.height));
+    setSocialPresetId(preset.id);
   };
 
   const isUploadedMedia = selection?.kind === 'media' && selectedUpload;
@@ -86,6 +115,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             title={ratio.label}
             onClick={() => {
               setCanvasRatio(ratio.value);
+              setSocialPresetId('');
               const preset = useEditorStore.getState().canvas;
               setWidth(String(preset.width));
               setHeight(String(preset.height));
@@ -101,6 +131,15 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
         ))}
       </div>
 
+      <label className="block rounded-xl border border-border bg-cream-50 p-2.5">
+        <span className="mb-2 flex items-center gap-1.5 text-[10px] text-muted"><Share2 className="size-3" /> Social media preset</span>
+        <select aria-label="Social media canvas preset" value={socialPresetId} onChange={(event) => applySocialPreset(event.currentTarget.value)} className="w-full cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 text-[10px] font-semibold text-ink outline-none transition focus:border-primary-300">
+          <option value="">Custom size</option>
+          {SOCIAL_PLATFORMS.map((platform) => <optgroup key={platform} label={platform}>{SOCIAL_PRESETS.filter((preset) => preset.platform === platform).map((preset) => <option key={preset.id} value={preset.id}>{preset.label} — {preset.width} × {preset.height}</option>)}</optgroup>)}
+        </select>
+        <span className="mt-1.5 block text-[8px] leading-relaxed text-muted">Choose a ready-to-publish canvas, then fine-tune it below if needed.</span>
+      </label>
+
       <div className="rounded-xl border border-border bg-cream-50 p-2.5">
         <div className="mb-2 flex items-center justify-between text-[10px]">
           <span className="flex items-center gap-1.5 text-muted">
@@ -110,6 +149,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             type="button"
             onClick={() => {
               resetCanvas();
+              setSocialPresetId('');
               setWidth('1280');
               setHeight('720');
             }}

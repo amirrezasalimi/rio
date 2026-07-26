@@ -83,11 +83,11 @@ export function GestureOverlay({ gestureClips, interactions, clips, crop, canvas
       return clips.flatMap((recordingClip): ProjectedEvent[] => {
         if (event.timestampMs < recordingClip.sourceStartMs || event.timestampMs > recordingClip.sourceEndMs) return [];
         const editedTimelineMs = recordingClip.timelineStartMs + event.timestampMs - recordingClip.sourceStartMs;
-        if (editedTimelineMs < gestureClip.sourceStartMs || editedTimelineMs > gestureClip.sourceEndMs) return [];
+        if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
         const bounds = getMediaBounds(recordingClip, media, canvasWidth, canvasHeight, sourceWidth, sourceHeight);
         return [{
           ...event,
-          timelineMs: gestureClip.timelineStartMs + editedTimelineMs - gestureClip.sourceStartMs,
+          timelineMs: editedTimelineMs,
           x: point ? bounds.left + point.x * bounds.width : bounds.left + bounds.width / 2,
           y: point ? bounds.top + point.y * bounds.height : bounds.top + bounds.height / 2,
         }];

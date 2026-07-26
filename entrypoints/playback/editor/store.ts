@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureSettings, MediaTransform, ShadowStyle, TimelineMediaItem, TimelineSelection } from './types';
+import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureSettings, MediaTransform, ShadowStyle, TextClip, TimelineMediaItem, TimelineSelection } from './types';
 import { CANVAS_SIZES, createInitialSettings } from './types';
 
 interface EditorStore extends EditorSettings {
   selectedTimelineItem?: TimelineSelection;
+  selectedTimelineItems: TimelineSelection[];
   initialize: (durationMs: number, saved?: EditorSettings) => void;
   setFrameStyle: (frameStyle: FrameStyle) => void;
   setBorderShape: (borderShape: BorderShape) => void;
@@ -20,13 +21,16 @@ interface EditorStore extends EditorSettings {
   setCanvasRatio: (ratio: CanvasRatio) => void;
   setCanvasSize: (width: number, height: number) => void;
   resetCanvas: () => void;
-  setClips: (clips: EditorClip[]) => void;
-  setTimelineMedia: (timelineMedia: TimelineMediaItem[]) => void;
-  setGestureClips: (gestureClips: GestureClip[]) => void;
+  setClips: (clips: EditorClip[] | ((current: EditorClip[]) => EditorClip[])) => void;
+  setTimelineMedia: (timelineMedia: TimelineMediaItem[] | ((current: TimelineMediaItem[]) => TimelineMediaItem[])) => void;
+  setGestureClips: (gestureClips: GestureClip[] | ((current: GestureClip[]) => GestureClip[])) => void;
+  setTextClips: (textClips: TextClip[] | ((current: TextClip[]) => TextClip[])) => void;
+  updateTextClip: (id: string, patch: Partial<TextClip>) => void;
   updateGestureClip: (id: string, patch: Partial<Omit<GestureClip, 'settings'>>) => void;
   updateGestureSettings: (id: string, patch: Partial<GestureSettings>) => void;
   setTimelineLimitMs: (timelineLimitMs: number) => void;
   setSelectedTimelineItem: (selection: TimelineSelection | undefined) => void;
+  selectTimelineItem: (selection: TimelineSelection, additive: boolean) => void;
   updateTimelineMediaItem: (id: string, patch: Partial<TimelineMediaItem>) => void;
   updateSelectedClip: (patch: Partial<EditorClip>) => void;
   updateSelectedClipVisual: (patch: Partial<ClipVisualSettings>) => void;
@@ -36,9 +40,21 @@ const initial = createInitialSettings(100);
 
 export const useEditorStore = create<EditorStore>((set) => ({
   ...initial,
+  selectedTimelineItems: initial.clips[0] ? [{ kind: 'recording', id: initial.clips[0].id }] : [],
   initialize: (durationMs, saved) => {
-    const settings = saved ?? createInitialSettings(durationMs);
-    set({ ...settings, selectedTimelineItem: settings.clips[0] ? { kind: 'recording', id: settings.clips[0].id } : undefined });
+    const fallback = createInitialSettings(durationMs);
+    const settings = saved
+      ? {
+          ...fallback,
+          ...saved,
+          clips: saved.clips ?? fallback.clips,
+          timelineMedia: saved.timelineMedia ?? [],
+          gestureClips: saved.gestureClips ?? [],
+          textClips: saved.textClips ?? [],
+        }
+      : fallback;
+    const selection = settings.clips[0] ? { kind: 'recording' as const, id: settings.clips[0].id } : undefined;
+    set({ ...settings, selectedTimelineItem: selection, selectedTimelineItems: selection ? [selection] : [] });
   },
   setFrameStyle: (frameStyle) => set({ frameStyle }),
   setBorderShape: (borderShape) => set({ borderShape }),
@@ -58,9 +74,13 @@ export const useEditorStore = create<EditorStore>((set) => ({
   },
   setCanvasSize: (width, height) => set({ canvas: { ratio: 'custom', width: Math.max(320, Math.round(width)), height: Math.max(320, Math.round(height)) } }),
   resetCanvas: () => set({ canvas: { ratio: '16:9', ...CANVAS_SIZES['16:9'] } }),
-  setClips: (clips) => set({ clips }),
-  setTimelineMedia: (timelineMedia) => set({ timelineMedia }),
-  setGestureClips: (gestureClips) => set({ gestureClips }),
+  setClips: (next) => set((state) => ({ clips: typeof next === 'function' ? next(state.clips) : next })),
+  setTimelineMedia: (next) => set((state) => ({ timelineMedia: typeof next === 'function' ? next(state.timelineMedia) : next })),
+  setGestureClips: (next) => set((state) => ({ gestureClips: typeof next === 'function' ? next(state.gestureClips) : next })),
+  setTextClips: (next) => set((state) => ({ textClips: typeof next === 'function' ? next(state.textClips) : next })),
+  updateTextClip: (id, patch) => set((state) => ({
+    textClips: state.textClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),
+  })),
   updateGestureClip: (id, patch) => set((state) => ({
     gestureClips: state.gestureClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),
   })),
@@ -68,7 +88,19 @@ export const useEditorStore = create<EditorStore>((set) => ({
     gestureClips: state.gestureClips.map((clip) => clip.id === id ? { ...clip, settings: { ...clip.settings, ...patch } } : clip),
   })),
   setTimelineLimitMs: (timelineLimitMs) => set({ timelineLimitMs: Math.max(1_000, timelineLimitMs) }),
-  setSelectedTimelineItem: (selectedTimelineItem) => set({ selectedTimelineItem }),
+  setSelectedTimelineItem: (selectedTimelineItem) => set({ selectedTimelineItem, selectedTimelineItems: selectedTimelineItem ? [selectedTimelineItem] : [] }),
+  selectTimelineItem: (selection, additive) => set((state) => {
+    const matches = (item: TimelineSelection) => item.kind === selection.kind && item.id === selection.id;
+    if (!additive) {
+      if (state.selectedTimelineItems.some(matches)) return { selectedTimelineItem: selection };
+      return { selectedTimelineItem: selection, selectedTimelineItems: [selection] };
+    }
+    const selected = state.selectedTimelineItems.some(matches);
+    const selectedTimelineItems = selected
+      ? state.selectedTimelineItems.filter((item) => !matches(item))
+      : [...state.selectedTimelineItems, selection];
+    return { selectedTimelineItem: selected ? selectedTimelineItems.at(-1) : selection, selectedTimelineItems };
+  }),
   updateTimelineMediaItem: (id, patch) => set((state) => ({
     timelineMedia: state.timelineMedia.map((item) => item.id === id ? { ...item, ...patch } : item),
   })),

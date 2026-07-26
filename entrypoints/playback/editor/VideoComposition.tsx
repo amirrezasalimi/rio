@@ -3,7 +3,7 @@ import { Audio, Video } from '@remotion/media';
 import type { CSSProperties, ReactNode } from 'react';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import { AbsoluteFill, Freeze, Sequence, useVideoConfig } from 'remotion';
-import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TimelineAssetSource, TimelineMediaItem } from './types';
+import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TextClip, TimelineAssetSource, TimelineMediaItem } from './types';
 import { getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getTimelineItemDurationMs } from './types';
 import { GestureOverlay } from './GestureOverlay';
 
@@ -182,14 +182,26 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   </>;
 }
 
-export function VideoComposition({ src, clips, timelineMedia, gestureClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1 }: VideoCompositionProps) {
+function TextClipSequence({ clip }: { clip: TextClip }) {
+  const { fps } = useVideoConfig();
+  const fillStyle: CSSProperties = clip.fill.type === 'solid'
+    ? { color: clip.fill.color }
+    : { color: 'transparent', backgroundImage: `linear-gradient(${clip.fill.angle}deg, ${clip.fill.colorA}, ${clip.fill.colorB})`, backgroundClip: 'text', WebkitBackgroundClip: 'text' };
+  return (
+    <Sequence from={Math.round(clip.timelineStartMs / 1000 * fps)} durationInFrames={Math.max(1, Math.round(clip.durationMs / 1000 * fps))} premountFor={fps}>
+      <div style={{ position: 'absolute', left: `${clip.positionX}%`, top: `${clip.positionY}%`, transform: `translate(-50%, -50%) rotate(${clip.rotation}deg) scale(${clip.scale / 100})`, transformOrigin: 'center', fontFamily: `"${clip.fontFamily}", sans-serif`, fontSize: clip.fontSize, fontWeight: clip.fontWeight, lineHeight: 1.08, whiteSpace: 'pre-wrap', textAlign: 'center', maxWidth: '90%', overflowWrap: 'anywhere', WebkitTextStroke: clip.strokeWidth > 0 ? `${clip.strokeWidth}px ${clip.strokeColor}` : undefined, paintOrder: 'stroke fill', ...fillStyle }}>{clip.text}</div>
+    </Sequence>
+  );
+}
+
+export function VideoComposition({ src, clips, timelineMedia, gestureClips, textClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1 }: VideoCompositionProps) {
   const { fps } = useVideoConfig();
   const safeSourceWidth = Math.max(1, sourceWidth);
   const safeSourceHeight = Math.max(1, sourceHeight);
   const defaultVisual: ClipVisualSettings = { frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY };
   const compositionDurationInFrames = Math.max(
     1,
-    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips), timelineLimitMs) / 1000 * fps),
+    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips, textClips), timelineLimitMs) / 1000 * fps),
   );
 
   return (
@@ -203,6 +215,7 @@ export function VideoComposition({ src, clips, timelineMedia, gestureClips, time
             return asset ? <TimelineMediaSequence key={item.id} item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} /> : null;
           })}
           <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} />
+          {textClips.map((clip) => <TextClipSequence key={clip.id} clip={clip} />)}
           {background.type === 'image' && background.imageCreditUrl && <a href={background.imageCreditUrl} target="_blank" rel="noreferrer" style={{ position: 'absolute', left: 14, bottom: 10, color: 'rgba(255,255,255,.9)', fontSize: 10, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Photo by {background.imageCredit} on Unsplash</a>}
         </AbsoluteFill>
       </div>

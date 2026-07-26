@@ -9,6 +9,7 @@ import { ExportMenu } from './components/ExportMenu';
 import { ExportSettingsMenu } from './components/ExportSettingsMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
+import { copySelectedTimelineItem, deleteSelectedTimelineItem, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
 import { exportRecording } from './editor/export';
 import { useEditorStore } from './editor/store';
 import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
@@ -71,6 +72,7 @@ function getSerializableProject(): EditorSettings {
     clips: state.clips,
     timelineMedia: state.timelineMedia,
     gestureClips: state.gestureClips,
+    textClips: state.textClips,
     timelineLimitMs: state.timelineLimitMs,
     frameStyle: state.frameStyle,
     borderShape: state.borderShape,
@@ -129,7 +131,7 @@ function App() {
   const initializedId = useRef<string | undefined>(undefined);
   const assetSourcesRef = useRef<TimelineAssetSource[]>([]);
   const settings = useEditorStore();
-  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips);
+  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips);
   const projectDurationMs = Math.max(editedDurationMs, settings.timelineLimitMs);
   const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
 
@@ -170,6 +172,16 @@ function App() {
               fadeOutMs: item.fadeOutMs ?? 0,
               holdLastFrame: item.holdLastFrame ?? false,
             })),
+            textClips: (saved.textClips ?? []).map((clip) => ({
+              ...clip,
+              durationMs: clip.durationMs ?? 5_000,
+              scale: clip.scale ?? 100,
+              rotation: clip.rotation ?? 0,
+              fontWeight: clip.fontWeight ?? 700,
+              fill: clip.fill ?? { type: 'solid', color: '#fffdf8' },
+              strokeColor: clip.strokeColor ?? '#18324a',
+              strokeWidth: clip.strokeWidth ?? 0,
+            })),
             gestureClips: (saved.gestureClips ?? []).map((clip) => ({
               ...clip,
               sourceStartMs: clip.sourceStartMs ?? 0,
@@ -188,7 +200,7 @@ function App() {
               meshMode: saved.background.meshMode ?? 'preset',
               meshPoints: saved.background.meshPoints?.length ? saved.background.meshPoints : createDefaultMeshPoints(),
             },
-            clips: saved.clips.map((clip, index) => ({ ...clip, timelineStartMs: clip.timelineStartMs ?? saved.clips.slice(0, index).reduce((total, item) => total + item.sourceEndMs - item.sourceStartMs, 0) })),
+            clips: (saved.clips ?? []).map((clip, index, clips) => ({ ...clip, timelineStartMs: clip.timelineStartMs ?? clips.slice(0, index).reduce((total, item) => total + item.sourceEndMs - item.sourceStartMs, 0) })),
           } : undefined;
           useEditorStore.getState().initialize(stored.durationMs, migrated);
           setProjectReady(true);
@@ -253,7 +265,16 @@ function App() {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
-      if (event.code === 'Space') {
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && event.key.toLowerCase() === 'c') {
+        if (copySelectedTimelineItem()) event.preventDefault();
+      } else if (modifier && event.key.toLowerCase() === 'v') {
+        if (pasteTimelineItem()) event.preventDefault();
+      } else if (modifier && event.key.toLowerCase() === 'd') {
+        if (duplicateSelectedTimelineItem()) event.preventDefault();
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (deleteSelectedTimelineItem()) event.preventDefault();
+      } else if (event.code === 'Space') {
         event.preventDefault();
         playerRef.current?.toggle();
       } else if (event.key === 'Escape') {
@@ -278,6 +299,7 @@ function App() {
     clips: settings.clips,
     timelineMedia: settings.timelineMedia,
     gestureClips: settings.gestureClips,
+    textClips: settings.textClips,
     timelineLimitMs: settings.timelineLimitMs,
     assetSources,
     background: settings.background,
@@ -299,7 +321,7 @@ function App() {
     sourceDurationMs: recording?.durationMs ?? 0,
     interactions: recording?.interactions ?? [],
     crop: recording?.crop,
-  }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY]);
+  }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY]);
 
   const seek = (timeMs: number) => {
     const frame = Math.min(durationInFrames - 1, Math.max(0, Math.round(timeMs / 1000 * FPS)));

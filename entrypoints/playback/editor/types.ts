@@ -27,7 +27,8 @@ export type TimelineMediaType = 'image' | 'video' | 'audio';
 export type TimelineSelection =
   | { kind: 'recording'; id: string }
   | { kind: 'media'; id: string }
-  | { kind: 'gesture'; id: string };
+  | { kind: 'gesture'; id: string }
+  | { kind: 'text'; id: string };
 export type GestureAction = 'pointer' | 'click' | 'double-click' | 'drag' | 'scroll';
 export type GestureAnimation = 'pulse' | 'ripple' | 'burst';
 
@@ -51,6 +52,27 @@ export interface GestureClip {
   sourceEndMs: number;
   timelineStartMs: number;
   settings: GestureSettings;
+}
+
+export type TextFill =
+  | { type: 'solid'; color: string }
+  | { type: 'gradient'; colorA: string; colorB: string; angle: number };
+
+export interface TextClip {
+  id: string;
+  text: string;
+  timelineStartMs: number;
+  durationMs: number;
+  positionX: number;
+  positionY: number;
+  fontSize: number;
+  scale: number;
+  rotation: number;
+  fontFamily: string;
+  fontWeight: number;
+  fill: TextFill;
+  strokeColor: string;
+  strokeWidth: number;
 }
 
 export interface ClipVisualSettings {
@@ -152,6 +174,7 @@ export interface EditorSettings {
   clips: EditorClip[];
   timelineMedia: TimelineMediaItem[];
   gestureClips: GestureClip[];
+  textClips: TextClip[];
   timelineLimitMs: number;
   frameStyle: FrameStyle;
   borderShape: BorderShape;
@@ -305,10 +328,30 @@ export function getGestureClipDurationMs(clip: GestureClip): number {
   return Math.max(0, clip.sourceEndMs - clip.sourceStartMs);
 }
 
-export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = [], gestureClips: GestureClip[] = []): number {
+export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = [], gestureClips: GestureClip[] = [], textClips: TextClip[] = []): number {
   const clipEnd = clips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getClipDurationMs(clip)), 0);
   const mediaEnd = timelineMedia.reduce((duration, item) => Math.max(duration, item.timelineStartMs + getTimelineItemDurationMs(item)), clipEnd);
-  return gestureClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getGestureClipDurationMs(clip)), mediaEnd);
+  const gestureEnd = gestureClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getGestureClipDurationMs(clip)), mediaEnd);
+  return textClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + clip.durationMs), gestureEnd);
+}
+
+export function createDefaultTextClip(timelineStartMs = 0): TextClip {
+  return {
+    id: crypto.randomUUID(),
+    text: 'Your text',
+    timelineStartMs,
+    durationMs: 5_000,
+    positionX: 50,
+    positionY: 50,
+    fontSize: 72,
+    scale: 100,
+    rotation: 0,
+    fontFamily: 'Arial',
+    fontWeight: 700,
+    fill: { type: 'solid', color: '#fffdf8' },
+    strokeColor: '#18324a',
+    strokeWidth: 0,
+  };
 }
 
 export function createDefaultGestureSettings(): GestureSettings {
@@ -341,6 +384,7 @@ export function createInitialSettings(durationMs: number): EditorSettings {
     clips: [{ id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: Math.max(durationMs, 100), timelineStartMs: 0 }],
     timelineMedia: [],
     gestureClips: [],
+    textClips: [],
     timelineLimitMs: Math.max(durationMs, 1_000),
     frameStyle: 'default',
     borderShape: 'curved',
