@@ -13,7 +13,7 @@ import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../ed
 import { useEditorStore } from '../editor/store';
 import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
 import type { EditorClip, GestureClip, TimelineAssetSource } from '../editor/types';
-import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs } from '../editor/types';
+import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate } from '../editor/types';
 import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
@@ -38,7 +38,7 @@ function locateSourceTime(clips: EditorClip[], editedTimeMs: number): { clipInde
       return {
         clipIndex: index,
         sourceTimeMs:
-          clip.sourceStartMs + editedTimeMs - clip.timelineStartMs,
+          clip.sourceStartMs + (editedTimeMs - clip.timelineStartMs) * getPlaybackRate(clip),
       };
     }
   }
@@ -57,6 +57,7 @@ export function Timeline({
   onSeek,
   assets,
   onUploadMedia,
+  onDropMedia,
   onDeleteAsset,
   interactionCount,
   onDownloadClip,
@@ -66,6 +67,7 @@ export function Timeline({
   onSeek: (timeMs: number) => void;
   assets: TimelineAssetSource[];
   onUploadMedia: (files: FileList) => void;
+  onDropMedia: (files: FileList, timelineStartMs: number) => void;
   onDeleteAsset: (assetId: string) => void;
   interactionCount: number;
   onDownloadClip: (clip: EditorClip) => void;
@@ -171,9 +173,10 @@ export function Timeline({
     const located = locateSourceTime(clips, currentTimeMs);
     if (!located) return;
     const clip = clips[located.clipIndex];
+    const minimumSourceDurationMs = MIN_CLIP_MS * getPlaybackRate(clip);
     if (
-      located.sourceTimeMs - clip.sourceStartMs < MIN_CLIP_MS ||
-      clip.sourceEndMs - located.sourceTimeMs < MIN_CLIP_MS
+      located.sourceTimeMs - clip.sourceStartMs < minimumSourceDurationMs ||
+      clip.sourceEndMs - located.sourceTimeMs < minimumSourceDurationMs
     ) return;
 
     const first = {
@@ -207,6 +210,7 @@ export function Timeline({
     if (!bounds) return;
 
     const initial = clips[index];
+    const minimumSourceDurationMs = MIN_CLIP_MS * getPlaybackRate(initial);
     const itemSelection = { kind: 'recording' as const, id: initial.id };
     const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
     if (event.shiftKey) selectItem(itemSelection, true);
@@ -218,6 +222,7 @@ export function Timeline({
 
     const onMove = (moveEvent: PointerEvent) => {
       const delta = snap((moveEvent.clientX - startX) / pixelsPerMs);
+      const sourceDelta = delta * getPlaybackRate(initial);
       if (interaction === 'clip') {
         moveSelectedTimelineItems(Math.max(-minimumStart, delta), initialStarts);
         return;
@@ -229,8 +234,8 @@ export function Timeline({
             const sourceStartMs = Math.max(
               0,
               Math.min(
-                initial.sourceEndMs - MIN_CLIP_MS,
-                initial.sourceStartMs + delta,
+                initial.sourceEndMs - minimumSourceDurationMs,
+                initial.sourceStartMs + sourceDelta,
               ),
             );
             return {
@@ -239,16 +244,16 @@ export function Timeline({
               timelineStartMs: Math.max(
                 0,
                 initial.timelineStartMs +
-                  sourceStartMs -
-                  initial.sourceStartMs,
+                  (sourceStartMs - initial.sourceStartMs) /
+                  getPlaybackRate(initial),
               ),
             };
           }
           return {
             ...clip,
             sourceEndMs: Math.max(
-              initial.sourceStartMs + MIN_CLIP_MS,
-              initial.sourceEndMs + delta,
+              initial.sourceStartMs + minimumSourceDurationMs,
+              initial.sourceEndMs + sourceDelta,
             ),
           };
         }),
@@ -386,7 +391,14 @@ export function Timeline({
       </div>
 
       <div ref={viewportRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-border bg-cream-100">
-        <div ref={contentRef} onPointerDown={seekFromPointer} className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}>
+        <div ref={contentRef} onPointerDown={seekFromPointer} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }} onDrop={(event) => {
+          event.preventDefault();
+          if (!event.dataTransfer.files.length) return;
+          const bounds = contentRef.current?.getBoundingClientRect();
+          if (!bounds) return;
+          const timelineStartMs = Math.max(0, Math.min(timelineDurationMs, (event.clientX - bounds.left) / bounds.width * timelineDurationMs));
+          onDropMedia(event.dataTransfer.files, timelineStartMs);
+        }} className="relative flex min-h-full flex-col" style={{ width: `${zoom * 100}%`, minWidth: '100%' }}>
           <TimelineRuler currentTimeMs={currentTimeMs} timelineDurationMs={timelineDurationMs} preciseTicks={preciseRuler} />
           <div
             aria-hidden="true"
@@ -446,7 +458,7 @@ export function Timeline({
                     Clip {index + 1}
                   </span>
                   <span className="pointer-events-none absolute bottom-2 left-6 font-mono text-[8px] font-semibold text-primary-950">
-                    {timeLabel(clipDuration)}
+                    {timeLabel(clipDuration)} · {getPlaybackRate(clip)}×
                   </span>
                   <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDownload={() => onDownloadClip(clip)} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
                 </div>

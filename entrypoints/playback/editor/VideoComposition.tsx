@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import { AbsoluteFill, Freeze, Sequence, useVideoConfig } from 'remotion';
 import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TextClip, TimelineAssetSource, TimelineMediaItem } from './types';
-import { getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getTimelineItemDurationMs } from './types';
+import { getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getPlaybackRate, getTimelineItemDurationMs } from './types';
 import { GestureOverlay } from './GestureOverlay';
 
 export interface VideoCompositionProps extends EditorSettings, Record<string, unknown> {
@@ -93,9 +93,10 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
   const src = asset.url;
   const from = Math.round(item.timelineStartMs / 1000 * fps);
   const durationInFrames = Math.max(1, Math.round(getTimelineItemDurationMs(item) / 1000 * fps));
+  const playbackRate = item.type === 'video' ? getPlaybackRate(item) : 1;
   const playableDurationMs = Math.max(
     0,
-    Math.min(getTimelineItemDurationMs(item), item.assetDurationMs - item.sourceStartMs),
+    Math.min(getTimelineItemDurationMs(item), (item.assetDurationMs - item.sourceStartMs) / playbackRate),
   );
   const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps));
   const trimBefore = Math.round(item.sourceStartMs / 1000 * fps);
@@ -136,7 +137,7 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
       )}
       {item.type === 'video' && (
         <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>
-          {surface(<Video src={src} trimBefore={trimBefore} volume={item.volume / 100} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
+          {surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={item.volume / 100} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
         </Sequence>
       )}
       {item.type === 'video' && frozenPlacementFrames > 0 && (
@@ -169,15 +170,16 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const frameWidth = contentWidth + padding * 2;
   const frameHeight = contentHeight + padding * 2;
   const trimBefore = Math.round(clip.sourceStartMs / 1000 * fps);
+  const playbackRate = getPlaybackRate(clip);
   const durationInFrames = Math.max(1, Math.round(getClipDurationMs(clip) / 1000 * fps));
-  const playableDurationMs = Math.max(0, Math.min(getClipDurationMs(clip), sourceDurationMs - clip.sourceStartMs));
+  const playableDurationMs = Math.max(0, Math.min(getClipDurationMs(clip), (sourceDurationMs - clip.sourceStartMs) / playbackRate));
   const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps));
   const frozenDurationInFrames = Math.max(0, durationInFrames - playableDurationInFrames);
   const from = Math.round(clip.timelineStartMs / 1000 * fps);
   const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
 
   return <>
-    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Sequence>
+    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Sequence>
     {frozenDurationInFrames > 0 && <Sequence from={from + playableDurationInFrames} durationInFrames={frozenDurationInFrames} premountFor={fps}><Freeze frame={playableDurationInFrames - 1}>{surface(<Video src={src} trimBefore={trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Freeze></Sequence>}
   </>;
 }

@@ -11,9 +11,10 @@ interface CanvasWorkspaceProps {
   playerRef: React.RefObject<PlayerRef | null>;
   movingMedia: boolean;
   onMovingMediaChange: (moving: boolean) => void;
+  onDropMedia: (files: FileList, position: { x: number; y: number }) => void;
 }
 
-export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMediaChange }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMediaChange, onDropMedia }: CanvasWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(50);
@@ -50,6 +51,18 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     workspace.addEventListener('wheel', zoomCanvas, { passive: false });
     return () => { observer.disconnect(); workspace.removeEventListener('wheel', zoomCanvas); };
   }, [fitCanvas]);
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    if (!files.length) return;
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    onDropMedia(files, {
+      x: Math.max(0, Math.min(100, (event.clientX - bounds.left) / bounds.width * 100)),
+      y: Math.max(0, Math.min(100, (event.clientY - bounds.top) / bounds.height * 100)),
+    });
+  };
 
   const panWorkspace = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as HTMLElement).closest('button, input, [role="button"], [data-rp="controls"]')) return;
@@ -142,7 +155,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   const canMoveSelection = Boolean(selectedRecording || selectedUpload) && (!selectedUpload || selectedUpload.type !== 'audio');
 
   return (
-    <section ref={workspaceRef} onPointerDown={panWorkspace} className="relative min-h-0 flex-1 cursor-grab overflow-hidden bg-cream-100/45 active:cursor-grabbing [background-image:radial-gradient(var(--color-border)_1px,transparent_1px)] [background-size:18px_18px]">
+    <section ref={workspaceRef} onPointerDown={panWorkspace} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }} onDrop={handleDrop} className="relative min-h-0 flex-1 cursor-grab overflow-hidden bg-cream-100/45 active:cursor-grabbing [background-image:radial-gradient(var(--color-border)_1px,transparent_1px)] [background-size:18px_18px]">
       <div className="pointer-events-none absolute left-3 top-3 z-30 flex items-center gap-1 rounded-xl border border-border bg-surface/92 p-1 shadow-sm backdrop-blur">
         <button type="button" aria-label="Zoom out" onClick={() => setZoom((value) => Math.max(10, value - 10))} className="pointer-events-auto rounded-lg p-1.5 hover:bg-primary-50"><Minus className="size-3.5" /></button>
         <span className="w-12 text-center font-mono text-[9px] text-muted">{Math.round(zoom)}%</span>

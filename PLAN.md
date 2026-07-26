@@ -47,7 +47,8 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Save completed recordings into IndexedDB
 - [ ] Stream recording chunks into durable local storage during capture
 - [ ] Recover interrupted or crashed recordings
-- [ ] List, rename, preview, and delete recordings
+- [x] List, preview, open, and delete projects from a dedicated projects page
+- [ ] Rename recordings
 - [x] Open a playback tab after stopping
 - [ ] Display storage usage and limits
 - [ ] Add retention and cleanup controls
@@ -92,12 +93,14 @@ This document is the implementation checklist for the recorder extension. We wil
 - [x] Add movable and trimmable gesture-effect clips with per-action toggles and customizable cursor, click, drag, and scroll animations
 - [ ] Add automatic zoom effects driven by recorded interactions
 - [x] Add movable, rotatable, trimmable text clips with installed-font selection, typography, solid/gradient fills, and strokes
+- [x] Add per-video clip playback speed controls with timeline, gesture, preview, and export synchronization
 - [x] Add right-click duplicate/delete context menus and copy, paste, duplicate, and delete keyboard shortcuts for all timeline items
 - [x] Hide empty recording, media, gesture, and text timeline lanes
 - [x] Support Shift multi-selection and synchronized movement across timeline item types
 - [x] Keep the original recording as a permanent Add item source while allowing all recording placements to be removed
 - [x] Add a File menu for new projects, recent projects, full ZIP import/export, and complete current-project deletion
 - [x] Add blank projects, original-quality recording clip downloads, and reusable gesture metadata sources from project videos
+- [x] Drop image, video, and audio files directly onto the canvas or timeline to import and place them
 - [ ] Add blur and spotlight annotations
 - [ ] Add undo and redo
 
@@ -161,3 +164,4 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Centralize timeline item creation in one Add item menu and map trackpad pinch gestures to horizontal timeline time zoom while preserving ordinary scrolling.
 - 2026-07-26: Use a versioned ZIP archive for complete project portability, containing the immutable source recording, interaction metadata, editor settings, and uploaded asset blobs. Imported projects receive fresh recording and asset IDs to avoid overwriting local work.
 - 2026-07-26: Embed Rio gesture data in a versioned binary-safe video footer when downloading recording clips. Project video assets with that footer become selectable gesture-data sources, retaining source duration, action count, timestamps, and crop metadata.
+- 2026-07-27: Download untrimmed original clips directly from the editor's user action. For trimmed clips, use a visible extension processor page, mount recording blobs into FFmpeg WASM through `WORKERFS`, stream-copy the selected range, and require an explicit Download clip click; this avoids duplicate editor memory and Chromium's hidden-renderer Blob download rejection.

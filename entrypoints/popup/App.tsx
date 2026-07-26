@@ -1,4 +1,4 @@
-import { Circle, Crop, FilePlus2, Mic, Monitor, PanelsTopLeft, Volume2, AppWindow, type LucideIcon } from 'lucide-react';
+import { AppWindow, Circle, Crop, FilePlus2, FolderKanban, Mic, Monitor, PanelsTopLeft, Volume2, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
 import type { CaptureMode, RecordingOptions } from '../shared/recording/types';
@@ -51,6 +51,11 @@ function App() {
     }
   };
 
+  const openProjects = async () => {
+    await browser.tabs.create({ url: chrome.runtime.getURL('/projects.html') });
+    window.close();
+  };
+
   const openRecorder = async () => {
     setOpening(true);
     setError(undefined);
@@ -59,16 +64,13 @@ function App() {
       const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
       if (!activeTab?.id) throw new Error('Rio could not find the active tab.');
 
-      const response = await browser.runtime.sendMessage({
+      const captureRequest = browser.runtime.sendMessage({
         type: 'start-capture',
         options,
         targetTabId: activeTab.id,
-      }) as { ok: boolean; error?: string } | undefined;
-
-      if (response?.ok) {
-        window.close();
-        return;
-      }
+      });
+      window.close();
+      const response = await captureRequest as { ok: boolean; error?: string } | undefined;
       if (response?.error) throw new Error(response.error);
     } catch (captureError: unknown) {
       setError(captureError instanceof Error ? captureError.message : 'Could not start the recording.');
@@ -132,7 +134,10 @@ function App() {
         <Circle className="size-4 fill-current" />
         {opening ? 'Opening picker…' : 'Start recording'}
       </button>
-      <button type="button" onClick={() => void openBlankProject()} disabled={opening} className="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-surface px-5 py-2.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-wait disabled:opacity-60"><FilePlus2 className="size-4" /> Blank project</button>
+      <div className="relative mt-2 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => void openBlankProject()} disabled={opening} className="flex items-center justify-center gap-2 rounded-xl border border-primary-200 bg-surface px-3 py-2.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-50 disabled:cursor-wait disabled:opacity-60"><FilePlus2 className="size-4" /> Blank project</button>
+        <button type="button" onClick={() => void openProjects()} disabled={opening} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-ink transition hover:border-primary-200 hover:bg-primary-50 disabled:opacity-60"><FolderKanban className="size-4 text-primary-600" /> Manage projects</button>
+      </div>
       {error && (
         <p role="alert" className="relative mt-3 rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-center text-xs font-medium text-danger">
           {error}

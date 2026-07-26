@@ -104,6 +104,7 @@ export interface EditorClip {
   sourceStartMs: number;
   sourceEndMs: number;
   timelineStartMs: number;
+  playbackRate?: number;
   visual?: Partial<ClipVisualSettings>;
   media?: MediaTransform;
 }
@@ -117,6 +118,7 @@ export interface TimelineMediaItem {
   sourceStartMs: number;
   sourceEndMs: number;
   timelineStartMs: number;
+  playbackRate?: number;
   scale: number;
   positionX: number;
   positionY: number;
@@ -329,12 +331,17 @@ export function getClipMediaTransform(clip: EditorClip, fallback: MediaTransform
   return clip.media ?? fallback;
 }
 
-export function getClipDurationMs(clip: EditorClip): number {
-  return Math.max(0, clip.sourceEndMs - clip.sourceStartMs);
+export function getPlaybackRate(item: { playbackRate?: number }): number {
+  return Math.max(0.25, Math.min(4, item.playbackRate ?? 1));
 }
 
-export function getTimelineItemDurationMs(item: Pick<TimelineMediaItem, 'sourceStartMs' | 'sourceEndMs'>): number {
-  return Math.max(0, item.sourceEndMs - item.sourceStartMs);
+export function getClipDurationMs(clip: EditorClip): number {
+  return Math.max(0, clip.sourceEndMs - clip.sourceStartMs) / getPlaybackRate(clip);
+}
+
+export function getTimelineItemDurationMs(item: Pick<TimelineMediaItem, 'sourceStartMs' | 'sourceEndMs' | 'playbackRate' | 'type'>): number {
+  const rate = item.type === 'video' ? getPlaybackRate(item) : 1;
+  return Math.max(0, item.sourceEndMs - item.sourceStartMs) / rate;
 }
 
 export function getGestureClipDurationMs(clip: GestureClip): number {

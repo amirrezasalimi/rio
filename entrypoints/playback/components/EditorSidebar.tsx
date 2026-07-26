@@ -1,8 +1,8 @@
-import { Check, Frame, LayoutTemplate, Palette, Shapes, Sparkles } from 'lucide-react';
+import { Check, Frame, Gauge, LayoutTemplate, Palette, Shapes, Sparkles } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { BorderShape, ClipVisualSettings, FrameStyle, ShadowStyle } from '../editor/types';
-import { getClipVisualSettings } from '../editor/types';
+import { getClipVisualSettings, getPlaybackRate } from '../editor/types';
 import { BackgroundPanel } from './BackgroundPanel';
 import { CanvasPanel } from './CanvasPanel';
 import { EditorRange } from './EditorRange';
@@ -108,6 +108,12 @@ export function EditorSidebar() {
   };
   const hasSelection = Boolean(selectedClip || selectedMedia || selectedGesture || selectedText);
   const supportsVisualSettings = Boolean(selectedClip || selectedVisualMedia);
+  const speedItem = selectedClip ?? (selectedMedia?.type === 'video' ? selectedMedia : undefined);
+  const playbackRate = speedItem ? getPlaybackRate(speedItem) : 1;
+  const updatePlaybackRate = (rate: number) => {
+    if (selectedClip) store.updateSelectedClip({ playbackRate: rate });
+    else if (selectedMedia?.type === 'video') store.updateTimelineMediaItem(selectedMedia.id, { playbackRate: rate });
+  };
   const selectedLabel = selectedMedia
     ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} settings`
     : selectedClip
@@ -127,6 +133,12 @@ export function EditorSidebar() {
 
       {selectedGesture && <GestureSettingsPanel />}
       {selectedText && <TextSettingsPanel />}
+
+      {speedItem && <Section icon={Gauge} title="Playback speed">
+        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => updatePlaybackRate(rate)} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
+        <EditorRange className="mt-3" label="Custom speed" value={playbackRate} min={0.25} max={4} step={0.05} suffix="×" onChange={updatePlaybackRate} />
+        <p className="mt-2 text-[8px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
+      </Section>}
 
       {!selectedGesture && !selectedText && supportsVisualSettings && <Section icon={Frame} title="Media frame">
         <div className="grid grid-cols-2 gap-1.5">

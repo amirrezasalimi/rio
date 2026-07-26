@@ -1,6 +1,6 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "rio-recorder",
+  "description": "Local-first Chromium screen recorder and browser-based video editor.",
   "private": true,
   "version": "0.0.0",
   "type": "module",

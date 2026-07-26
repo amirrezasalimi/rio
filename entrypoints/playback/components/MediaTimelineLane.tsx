@@ -20,7 +20,8 @@ import type {
   TimelineMediaItem,
   TimelineMediaType,
 } from '../editor/types';
-import { getTimelineItemDurationMs } from '../editor/types';
+import { getPlaybackRate, getTimelineItemDurationMs } from '../editor/types';
+import { createTimelineMediaPlacement } from '../editor/mediaPlacement';
 import { ClipContextMenu } from './ClipContextMenu';
 
 const MIN_ITEM_MS = 150;
@@ -149,31 +150,11 @@ export function MediaLibrary({
   }, [open, assets.length]);
 
   const addPlacement = (asset: TimelineAssetSource) => {
-    const duration = asset.type === 'image'
-      ? 5_000
-      : Math.max(asset.durationMs, MIN_ITEM_MS);
     const start = Math.max(
       0,
       Math.min(currentTimeMs, timelineDurationMs - MIN_ITEM_MS),
     );
-    const placement: TimelineMediaItem = {
-      id: crypto.randomUUID(),
-      assetId: asset.id,
-      type: asset.type,
-      name: asset.name,
-      assetDurationMs: duration,
-      sourceStartMs: 0,
-      sourceEndMs: duration,
-      timelineStartMs: start,
-      scale: asset.type === 'audio' ? 0 : 42,
-      positionX: 50,
-      positionY: 50,
-      opacity: 100,
-      volume: 100,
-      fadeInMs: 0,
-      fadeOutMs: 0,
-      holdLastFrame: false,
-    };
+    const placement = createTimelineMediaPlacement(asset, start);
     onItemsChange([...items, placement]);
     setSelection({ kind: 'media', id: placement.id });
     setOpen(false);
@@ -282,6 +263,7 @@ export function MediaTimelineLane({
     if (!bounds) return;
 
     const initial = items[index];
+    const minimumSourceDurationMs = MIN_ITEM_MS * (initial.type === 'video' ? getPlaybackRate(initial) : 1);
     const startX = event.clientX;
     const pixelsPerMs = bounds.width / timelineDurationMs;
     const pointerTarget = event.currentTarget as HTMLElement;
@@ -296,6 +278,7 @@ export function MediaTimelineLane({
 
     const onMove = (moveEvent: PointerEvent) => {
       const delta = snap((moveEvent.clientX - startX) / pixelsPerMs);
+      const sourceDelta = initial.type === 'video' ? delta * getPlaybackRate(initial) : delta;
       if (interaction === 'item') {
         moveSelectedTimelineItems(Math.max(-minimumStart, delta), initialStarts);
         return;
@@ -306,19 +289,19 @@ export function MediaTimelineLane({
           const latestSourceStartMs = initial.type === 'image'
             ? initial.sourceEndMs - MIN_ITEM_MS
             : Math.min(
-                initial.sourceEndMs - MIN_ITEM_MS,
-                initial.assetDurationMs - MIN_ITEM_MS,
+                initial.sourceEndMs - minimumSourceDurationMs,
+                initial.assetDurationMs - minimumSourceDurationMs,
               );
           const sourceStartMs = Math.max(
             0,
-            Math.min(latestSourceStartMs, initial.sourceStartMs + delta),
+            Math.min(latestSourceStartMs, initial.sourceStartMs + sourceDelta),
           );
           return {
             ...item,
             sourceStartMs,
             timelineStartMs: Math.max(
               0,
-              initial.timelineStartMs + sourceStartMs - initial.sourceStartMs,
+              initial.timelineStartMs + (sourceStartMs - initial.sourceStartMs) / (initial.type === 'video' ? getPlaybackRate(initial) : 1),
             ),
           };
         }
@@ -327,11 +310,11 @@ export function MediaTimelineLane({
           sourceEndMs: initial.type === 'audio'
             ? Math.min(
                 initial.assetDurationMs,
-                Math.max(initial.sourceStartMs + MIN_ITEM_MS, initial.sourceEndMs + delta),
+                Math.max(initial.sourceStartMs + minimumSourceDurationMs, initial.sourceEndMs + sourceDelta),
               )
             : Math.max(
-                initial.sourceStartMs + MIN_ITEM_MS,
-                initial.sourceEndMs + delta,
+                initial.sourceStartMs + minimumSourceDurationMs,
+                initial.sourceEndMs + sourceDelta,
               ),
         };
       }));
@@ -379,6 +362,7 @@ export function MediaTimelineLane({
                 <div className="pointer-events-none absolute inset-y-0 left-6 right-6 z-10 flex min-w-0 items-center gap-1.5">
                   <TypeIcon type={item.type} />
                   <span className="truncate text-[8px] font-semibold">{item.name}</span>
+                  {item.type === 'video' && <span className="shrink-0 font-mono text-[7px] font-semibold">{getPlaybackRate(item)}×</span>}
                   {extendsPastSource && <span className="shrink-0 rounded bg-surface/75 px-1 py-0.5 text-[7px] font-semibold">Held</span>}
                 </div>
               </div>

@@ -2,23 +2,17 @@ import { Player, type PlayerRef } from '@remotion/player';
 import { AlertCircle, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
-import { formatDuration } from '../shared/recording/media';
-import { deleteEditorAsset, deleteRecordingProject, getEditorAssets, getEditorProject, getRecording, getRecordings, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
-import { EditorSidebar } from './components/EditorSidebar';
-import { ExportMenu } from './components/ExportMenu';
-import { ExportSettingsMenu } from './components/ExportSettingsMenu';
+import { formatDuration } from '../shared/recording/media'; import { deleteEditorAsset, deleteRecordingProject, getEditorAssets, getEditorProject, getRecording, getRecordings, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
+import { EditorSidebar } from './components/EditorSidebar'; import { ExportMenu } from './components/ExportMenu'; import { ExportSettingsMenu } from './components/ExportSettingsMenu';
 import { FileMenu } from './components/FileMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
 import { copySelectedTimelineItem, deleteSelectedTimelineItem, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
-import { downloadRecordingClip } from './editor/clipDownload';
-import { exportRecording } from './editor/export';
-import { readGestureMetadata } from './editor/gestureMetadata';
+import { downloadRecordingClip } from './editor/clipDownload'; import { exportRecording } from './editor/export'; import { readGestureMetadata } from './editor/gestureMetadata';
+import { createTimelineMediaPlacement } from './editor/mediaPlacement';
 import { exportProjectArchive, importProjectArchive } from './editor/projectArchive';
-import { useEditorStore } from './editor/store';
-import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorClip, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
+import { useEditorStore } from './editor/store'; import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorClip, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
 import { VideoComposition } from './editor/VideoComposition';
-
 function getAssetType(mimeType: string): TimelineMediaType | undefined {
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('video/')) return 'video';
@@ -179,6 +173,7 @@ function App() {
               fadeInMs: item.fadeInMs ?? 0,
               fadeOutMs: item.fadeOutMs ?? 0,
               holdLastFrame: item.holdLastFrame ?? false,
+              playbackRate: item.playbackRate ?? 1,
             })),
             textClips: (saved.textClips ?? []).map((clip) => ({
               ...clip,
@@ -208,7 +203,7 @@ function App() {
               meshMode: saved.background.meshMode ?? 'preset',
               meshPoints: saved.background.meshPoints?.length ? saved.background.meshPoints : createDefaultMeshPoints(),
             },
-            clips: (saved.clips ?? []).map((clip, index, clips) => ({ ...clip, timelineStartMs: clip.timelineStartMs ?? clips.slice(0, index).reduce((total, item) => total + item.sourceEndMs - item.sourceStartMs, 0) })),
+            clips: (saved.clips ?? []).map((clip, index, clips) => ({ ...clip, playbackRate: clip.playbackRate ?? 1, timelineStartMs: clip.timelineStartMs ?? clips.slice(0, index).reduce((total, item) => total + item.sourceEndMs - item.sourceStartMs, 0) })),
           } : undefined;
           useEditorStore.getState().initialize(stored.durationMs, migrated);
           setProjectReady(true);
@@ -342,7 +337,7 @@ function App() {
     setCurrentTimeMs(frame / FPS * 1000);
   };
 
-  const uploadMedia = async (files: FileList) => {
+  const uploadMedia = async (files: FileList, placement?: { timelineStartMs: number; position?: { x: number; y: number } }) => {
     if (!recording) return;
     setError(undefined);
     try {
@@ -367,6 +362,11 @@ function App() {
         if (resolved) nextAssets.push(resolved);
       }
       setAssetSources((current) => [...current, ...nextAssets]);
+      if (placement && nextAssets.length > 0) {
+        const placements = nextAssets.map((asset) => createTimelineMediaPlacement(asset, placement.timelineStartMs, placement.position));
+        useEditorStore.getState().setTimelineMedia((current) => [...current, ...placements]);
+        useEditorStore.getState().setSelectedTimelineItem({ kind: 'media', id: placements[0].id });
+      }
       if (nextAssets.length === 0) setError('Choose a supported image, video, or audio file.');
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Could not add this media.');
@@ -443,7 +443,7 @@ function App() {
     if (!recording) return;
     setError(undefined);
     try {
-      await downloadRecordingClip(recording.blob, clip, recording.interactions ?? [], recording.crop);
+      await downloadRecordingClip(recording, clip);
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Could not download this clip.');
     }
@@ -489,8 +489,8 @@ function App() {
       <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
         <EditorSidebar />
         <div className="flex min-h-0 flex-col">
-          {videoUrl ? <CanvasWorkspace inputProps={inputProps} playerRef={playerRef} movingMedia={movingMedia} onMovingMediaChange={setMovingMedia} /> : <section className="grid min-h-0 flex-1 place-items-center"><div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="size-4 animate-spin" /> Loading recording…</div></section>}
-          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onDownloadClip={(clip) => void downloadClip(clip)} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
+          {videoUrl ? <CanvasWorkspace inputProps={inputProps} playerRef={playerRef} movingMedia={movingMedia} onMovingMediaChange={setMovingMedia} onDropMedia={(files, position) => void uploadMedia(files, { timelineStartMs: currentTimeMs, position })} /> : <section className="grid min-h-0 flex-1 place-items-center"><div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="size-4 animate-spin" /> Loading recording…</div></section>}
+          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onDownloadClip={(clip) => void downloadClip(clip)} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDropMedia={(files, timelineStartMs) => void uploadMedia(files, { timelineStartMs })} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
         </div>
       </div>
     </main>

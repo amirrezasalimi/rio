@@ -2,7 +2,7 @@ import { MousePointer2 } from 'lucide-react';
 import { interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import type { EditorClip, GestureAction, GestureClip, MediaTransform, TimelineAssetSource, TimelineMediaItem } from './types';
-import { getClipMediaTransform } from './types';
+import { getClipMediaTransform, getPlaybackRate } from './types';
 
 interface ProjectedEvent extends RecordedInteraction {
   timelineMs: number;
@@ -21,8 +21,15 @@ function getAction(event: RecordedInteraction): GestureAction {
 function getSourcePoint(event: RecordedInteraction, sourceWidth: number, sourceHeight: number, crop?: CropArea) {
   if (event.x === undefined || event.y === undefined) return undefined;
   if (crop) {
-    const x = (event.x - crop.x) / crop.width;
-    const y = (event.y - crop.y) / crop.height;
+    const normalizedCrop = crop.x <= 1 && crop.y <= 1 && crop.width <= 1 && crop.height <= 1;
+    const eventX = normalizedCrop
+      ? event.normalizedX ?? event.x / Math.max(1, event.viewportWidth)
+      : event.x;
+    const eventY = normalizedCrop
+      ? event.normalizedY ?? event.y / Math.max(1, event.viewportHeight)
+      : event.y;
+    const x = (eventX - crop.x) / crop.width;
+    const y = (eventY - crop.y) / crop.height;
     if (x < 0 || x > 1 || y < 0 || y > 1) return undefined;
     return { x, y };
   }
@@ -94,7 +101,7 @@ export function GestureOverlay({ gestureClips, interactions, clips, crop, timeli
 
       if (sourceAsset) return timelineMedia.filter((item) => item.assetId === sourceAsset.id).flatMap((item): ProjectedEvent[] => {
         if (event.timestampMs < item.sourceStartMs || event.timestampMs > item.sourceEndMs) return [];
-        const editedTimelineMs = item.timelineStartMs + event.timestampMs - item.sourceStartMs;
+        const editedTimelineMs = item.timelineStartMs + (event.timestampMs - item.sourceStartMs) / (item.type === 'video' ? getPlaybackRate(item) : 1);
         if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
         const bounds = getAssetBounds(item, canvasWidth, canvasHeight, eventSourceWidth, eventSourceHeight);
         return [{ ...event, timelineMs: editedTimelineMs, x: point ? bounds.left + point.x * bounds.width : bounds.left + bounds.width / 2, y: point ? bounds.top + point.y * bounds.height : bounds.top + bounds.height / 2 }];
@@ -102,7 +109,7 @@ export function GestureOverlay({ gestureClips, interactions, clips, crop, timeli
 
       return clips.flatMap((recordingClip): ProjectedEvent[] => {
         if (event.timestampMs < recordingClip.sourceStartMs || event.timestampMs > recordingClip.sourceEndMs) return [];
-        const editedTimelineMs = recordingClip.timelineStartMs + event.timestampMs - recordingClip.sourceStartMs;
+        const editedTimelineMs = recordingClip.timelineStartMs + (event.timestampMs - recordingClip.sourceStartMs) / getPlaybackRate(recordingClip);
         if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
         const bounds = getMediaBounds(recordingClip, media, canvasWidth, canvasHeight, sourceWidth, sourceHeight);
         return [{
