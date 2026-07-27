@@ -12,8 +12,8 @@ import { formatDuration } from '../../shared/recording/media';
 import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../editor/clipActions';
 import { useEditorStore } from '../editor/store';
 import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
-import type { EditorClip, GestureClip, TimelineAssetSource } from '../editor/types';
-import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate } from '../editor/types';
+import type { EditorClip, GestureClip, TimelineAssetSource, TimelineMediaItem } from '../editor/types';
+import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate, getTimelineItemDurationMs, getGestureClipDurationMs } from '../editor/types';
 import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
@@ -170,6 +170,152 @@ export function Timeline({
   };
 
   const split = () => {
+    if (selection) {
+      if (selection.kind === 'recording') {
+        const index = clips.findIndex((c) => c.id === selection.id);
+        if (index !== -1) {
+          const clip = clips[index];
+          const durationMs = getClipDurationMs(clip);
+          if (currentTimeMs > clip.timelineStartMs && currentTimeMs < clip.timelineStartMs + durationMs) {
+            const rate = getPlaybackRate(clip);
+            const sourceTimeMs = clip.sourceStartMs + (currentTimeMs - clip.timelineStartMs) * rate;
+            const minimumSourceDurationMs = MIN_CLIP_MS * rate;
+            if (
+              sourceTimeMs - clip.sourceStartMs >= minimumSourceDurationMs &&
+              clip.sourceEndMs - sourceTimeMs >= minimumSourceDurationMs
+            ) {
+              const first = {
+                ...clip,
+                id: crypto.randomUUID(),
+                sourceEndMs: sourceTimeMs,
+              };
+              const second = {
+                ...clip,
+                id: crypto.randomUUID(),
+                sourceStartMs: sourceTimeMs,
+                timelineStartMs: currentTimeMs,
+              };
+              setClips([
+                ...clips.slice(0, index),
+                first,
+                second,
+                ...clips.slice(index + 1),
+              ]);
+              setSelection({ kind: 'recording', id: second.id });
+              return;
+            }
+          }
+        }
+      } else if (selection.kind === 'media') {
+        const index = timelineMedia.findIndex((m) => m.id === selection.id);
+        if (index !== -1) {
+          const item = timelineMedia[index];
+          const durationMs = getTimelineItemDurationMs(item);
+          if (currentTimeMs > item.timelineStartMs && currentTimeMs < item.timelineStartMs + durationMs) {
+            const rate = item.type === 'video' ? getPlaybackRate(item) : 1;
+            const sourceTimeMs = item.sourceStartMs + (currentTimeMs - item.timelineStartMs) * rate;
+            const minimumSourceDurationMs = MIN_CLIP_MS * rate;
+            if (
+              sourceTimeMs - item.sourceStartMs >= minimumSourceDurationMs &&
+              item.sourceEndMs - sourceTimeMs >= minimumSourceDurationMs
+            ) {
+              const firstId = crypto.randomUUID();
+              const secondId = crypto.randomUUID();
+              const first: TimelineMediaItem = {
+                ...item,
+                id: firstId,
+                sourceEndMs: sourceTimeMs,
+                fadeOutMs: 0,
+              };
+              const second: TimelineMediaItem = {
+                ...item,
+                id: secondId,
+                sourceStartMs: sourceTimeMs,
+                timelineStartMs: currentTimeMs,
+                fadeInMs: 0,
+              };
+              setTimelineMedia([
+                ...timelineMedia.slice(0, index),
+                first,
+                second,
+                ...timelineMedia.slice(index + 1),
+              ]);
+              setSelection({ kind: 'media', id: secondId });
+              return;
+            }
+          }
+        }
+      } else if (selection.kind === 'gesture') {
+        const index = gestureClips.findIndex((g) => g.id === selection.id);
+        if (index !== -1) {
+          const clip = gestureClips[index];
+          const durationMs = getGestureClipDurationMs(clip);
+          if (currentTimeMs > clip.timelineStartMs && currentTimeMs < clip.timelineStartMs + durationMs) {
+            const sourceTimeMs = clip.sourceStartMs + (currentTimeMs - clip.timelineStartMs);
+            const minimumSourceDurationMs = MIN_CLIP_MS;
+            if (
+              sourceTimeMs - clip.sourceStartMs >= minimumSourceDurationMs &&
+              clip.sourceEndMs - sourceTimeMs >= minimumSourceDurationMs
+            ) {
+              const firstId = crypto.randomUUID();
+              const secondId = crypto.randomUUID();
+              const first = {
+                ...clip,
+                id: firstId,
+                sourceEndMs: sourceTimeMs,
+              };
+              const second = {
+                ...clip,
+                id: secondId,
+                sourceStartMs: sourceTimeMs,
+                timelineStartMs: currentTimeMs,
+              };
+              setGestureClips([
+                ...gestureClips.slice(0, index),
+                first,
+                second,
+                ...gestureClips.slice(index + 1),
+              ]);
+              setSelection({ kind: 'gesture', id: secondId });
+              return;
+            }
+          }
+        }
+      } else if (selection.kind === 'text') {
+        const index = textClips.findIndex((t) => t.id === selection.id);
+        if (index !== -1) {
+          const clip = textClips[index];
+          if (currentTimeMs > clip.timelineStartMs && currentTimeMs < clip.timelineStartMs + clip.durationMs) {
+            const firstDuration = currentTimeMs - clip.timelineStartMs;
+            const secondDuration = clip.timelineStartMs + clip.durationMs - currentTimeMs;
+            if (firstDuration >= MIN_CLIP_MS && secondDuration >= MIN_CLIP_MS) {
+              const firstId = crypto.randomUUID();
+              const secondId = crypto.randomUUID();
+              const first = {
+                ...clip,
+                id: firstId,
+                durationMs: firstDuration,
+              };
+              const second = {
+                ...clip,
+                id: secondId,
+                timelineStartMs: currentTimeMs,
+                durationMs: secondDuration,
+              };
+              setTextClips([
+                ...textClips.slice(0, index),
+                first,
+                second,
+                ...textClips.slice(index + 1),
+              ]);
+              setSelection({ kind: 'text', id: secondId });
+              return;
+            }
+          }
+        }
+      }
+    }
+
     const located = locateSourceTime(clips, currentTimeMs);
     if (!located) return;
     const clip = clips[located.clipIndex];
