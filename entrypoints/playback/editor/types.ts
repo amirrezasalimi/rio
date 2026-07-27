@@ -205,6 +205,7 @@ export interface EditorSettings {
   background: BackgroundSettings;
   media: MediaTransform;
   canvas: CanvasSettings;
+  sceneSpeed?: number;
 }
 
 export interface BackgroundVariant {
@@ -424,5 +425,6 @@ export function createInitialSettings(durationMs: number): EditorSettings {
     },
     media: { scale: 86, positionX: 50, positionY: 50 },
     canvas: { ratio: '16:9', ...CANVAS_SIZES['16:9'] },
+    sceneSpeed: 1,
   };
 }

@@ -88,21 +88,21 @@ function TimelineMediaSurface({ item, asset, canvasWidth, canvasHeight, defaultV
   );
 }
 
-function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canvasWidth, canvasHeight, defaultVisual, background }: { item: TimelineMediaItem; asset: TimelineAssetSource; compositionDurationInFrames: number; canvasWidth: number; canvasHeight: number; defaultVisual: ClipVisualSettings; background: BackgroundSettings }) {
+function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canvasWidth, canvasHeight, defaultVisual, background, sceneSpeed }: { item: TimelineMediaItem; asset: TimelineAssetSource; compositionDurationInFrames: number; canvasWidth: number; canvasHeight: number; defaultVisual: ClipVisualSettings; background: BackgroundSettings; sceneSpeed: number }) {
   const { fps } = useVideoConfig();
   const src = asset.url;
-  const from = Math.round(item.timelineStartMs / 1000 * fps);
-  const durationInFrames = Math.max(1, Math.round(getTimelineItemDurationMs(item) / 1000 * fps));
-  const playbackRate = item.type === 'video' ? getPlaybackRate(item) : 1;
+  const from = Math.round(item.timelineStartMs / 1000 * fps / sceneSpeed);
+  const durationInFrames = Math.max(1, Math.round(getTimelineItemDurationMs(item) / 1000 * fps / sceneSpeed));
+  const playbackRate = item.type === 'video' ? getPlaybackRate(item) * sceneSpeed : 1;
   const playableDurationMs = Math.max(
     0,
-    Math.min(getTimelineItemDurationMs(item), (item.assetDurationMs - item.sourceStartMs) / playbackRate),
+    Math.min(getTimelineItemDurationMs(item), (item.assetDurationMs - item.sourceStartMs) / (item.type === 'video' ? getPlaybackRate(item) : 1)),
   );
-  const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps));
+  const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps / sceneSpeed));
   const trimBefore = Math.round(item.sourceStartMs / 1000 * fps);
   const baseVolume = item.volume / 100;
-  const fadeInFrames = Math.max(0, Math.min(Math.round(item.fadeInMs / 1000 * fps), Math.floor(durationInFrames / 2)));
-  const fadeOutFrames = Math.max(0, Math.min(Math.round(item.fadeOutMs / 1000 * fps), Math.floor(durationInFrames / 2)));
+  const fadeInFrames = Math.max(0, Math.min(Math.round(item.fadeInMs / 1000 * fps / sceneSpeed), Math.floor(durationInFrames / 2)));
+  const fadeOutFrames = Math.max(0, Math.min(Math.round(item.fadeOutMs / 1000 * fps / sceneSpeed), Math.floor(durationInFrames / 2)));
   const audioVolume = (frame: number) => {
     const fadeInGain = fadeInFrames > 0 ? Math.min(1, frame / fadeInFrames) : 1;
     const framesUntilEnd = Math.max(0, durationInFrames - 1 - frame);
@@ -127,7 +127,7 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
     <>
       {item.type === 'audio' && (
         <Sequence from={from} durationInFrames={durationInFrames} premountFor={fps}>
-          <Audio src={src} trimBefore={trimBefore} volume={audioVolume} />
+          <Audio src={src} trimBefore={trimBefore} volume={audioVolume} playbackRate={sceneSpeed} />
         </Sequence>
       )}
       {item.type === 'image' && (
@@ -158,7 +158,7 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
   );
 }
 
-function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWidth, sourceHeight, sourceDurationMs, defaultVisual, defaultMedia, background }: { clip: EditorClip; src: string; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; sourceDurationMs: number; defaultVisual: ClipVisualSettings; defaultMedia: MediaTransform; background: BackgroundSettings }) {
+function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWidth, sourceHeight, sourceDurationMs, defaultVisual, defaultMedia, background, sceneSpeed }: { clip: EditorClip; src: string; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; sourceDurationMs: number; defaultVisual: ClipVisualSettings; defaultMedia: MediaTransform; background: BackgroundSettings; sceneSpeed: number }) {
   const { fps } = useVideoConfig();
   const visual = getClipVisualSettings(clip, defaultVisual);
   const media = getClipMediaTransform(clip, defaultMedia);
@@ -170,12 +170,12 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const frameWidth = contentWidth + padding * 2;
   const frameHeight = contentHeight + padding * 2;
   const trimBefore = Math.round(clip.sourceStartMs / 1000 * fps);
-  const playbackRate = getPlaybackRate(clip);
-  const durationInFrames = Math.max(1, Math.round(getClipDurationMs(clip) / 1000 * fps));
-  const playableDurationMs = Math.max(0, Math.min(getClipDurationMs(clip), (sourceDurationMs - clip.sourceStartMs) / playbackRate));
-  const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps));
+  const playbackRate = getPlaybackRate(clip) * sceneSpeed;
+  const durationInFrames = Math.max(1, Math.round(getClipDurationMs(clip) / 1000 * fps / sceneSpeed));
+  const playableDurationMs = Math.max(0, Math.min(getClipDurationMs(clip), (sourceDurationMs - clip.sourceStartMs) / getPlaybackRate(clip)));
+  const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps / sceneSpeed));
   const frozenDurationInFrames = Math.max(0, durationInFrames - playableDurationInFrames);
-  const from = Math.round(clip.timelineStartMs / 1000 * fps);
+  const from = Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed);
   const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
 
   return <>
@@ -184,26 +184,26 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   </>;
 }
 
-function TextClipSequence({ clip }: { clip: TextClip }) {
+function TextClipSequence({ clip, sceneSpeed }: { clip: TextClip; sceneSpeed: number }) {
   const { fps } = useVideoConfig();
   const fillStyle: CSSProperties = clip.fill.type === 'solid'
     ? { color: clip.fill.color }
     : { color: 'transparent', backgroundImage: `linear-gradient(${clip.fill.angle}deg, ${clip.fill.colorA}, ${clip.fill.colorB})`, backgroundClip: 'text', WebkitBackgroundClip: 'text' };
   return (
-    <Sequence from={Math.round(clip.timelineStartMs / 1000 * fps)} durationInFrames={Math.max(1, Math.round(clip.durationMs / 1000 * fps))} premountFor={fps}>
+    <Sequence from={Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed)} durationInFrames={Math.max(1, Math.round(clip.durationMs / 1000 * fps / sceneSpeed))} premountFor={fps}>
       <div style={{ position: 'absolute', left: `${clip.positionX}%`, top: `${clip.positionY}%`, transform: `translate(-50%, -50%) rotate(${clip.rotation}deg) scale(${clip.scale / 100})`, transformOrigin: 'center', fontFamily: `"${clip.fontFamily}", sans-serif`, fontSize: clip.fontSize, fontWeight: clip.fontWeight, lineHeight: 1.08, whiteSpace: 'pre-wrap', textAlign: 'center', maxWidth: '90%', overflowWrap: 'anywhere', WebkitTextStroke: clip.strokeWidth > 0 ? `${clip.strokeWidth}px ${clip.strokeColor}` : undefined, paintOrder: 'stroke fill', ...fillStyle }}>{clip.text}</div>
     </Sequence>
   );
 }
 
-export function VideoComposition({ src, clips, timelineMedia, gestureClips, textClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1 }: VideoCompositionProps) {
+export function VideoComposition({ src, clips, timelineMedia, gestureClips, textClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1, sceneSpeed = 1 }: VideoCompositionProps) {
   const { fps } = useVideoConfig();
   const safeSourceWidth = Math.max(1, sourceWidth);
   const safeSourceHeight = Math.max(1, sourceHeight);
   const defaultVisual: ClipVisualSettings = { frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY };
   const compositionDurationInFrames = Math.max(
     1,
-    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips, textClips), timelineLimitMs) / 1000 * fps),
+    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips, textClips), timelineLimitMs) / 1000 * fps / sceneSpeed),
   );
 
   return (
@@ -211,13 +211,13 @@ export function VideoComposition({ src, clips, timelineMedia, gestureClips, text
       <div style={{ position: 'relative', width: canvas.width, height: canvas.height, transform: `scale(${renderScale})`, transformOrigin: 'top left' }}>
         <AbsoluteFill style={{ background: background.type === 'transparent' ? 'transparent' : '#fffaf0', overflow: 'hidden' }}>
           <BackgroundLayer background={background} />
-          {clips.map((clip) => <RecordingClipSequence key={clip.id} clip={clip} src={src} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} sourceDurationMs={sourceDurationMs} defaultVisual={defaultVisual} defaultMedia={media} background={background} />)}
+          {clips.map((clip) => <RecordingClipSequence key={clip.id} clip={clip} src={src} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} sourceDurationMs={sourceDurationMs} defaultVisual={defaultVisual} defaultMedia={media} background={background} sceneSpeed={sceneSpeed} />)}
           {timelineMedia.map((item) => {
             const asset = assetSources.find((source) => source.id === item.assetId);
-            return asset ? <TimelineMediaSequence key={item.id} item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} /> : null;
+            return asset ? <TimelineMediaSequence key={item.id} item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} sceneSpeed={sceneSpeed} /> : null;
           })}
-          <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} timelineMedia={timelineMedia} assetSources={assetSources} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} />
-          {textClips.map((clip) => <TextClipSequence key={clip.id} clip={clip} />)}
+          <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} timelineMedia={timelineMedia} assetSources={assetSources} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} sceneSpeed={sceneSpeed} />
+          {textClips.map((clip) => <TextClipSequence key={clip.id} clip={clip} sceneSpeed={sceneSpeed} />)}
           {background.type === 'image' && background.imageCreditUrl && <a href={background.imageCreditUrl} target="_blank" rel="noreferrer" style={{ position: 'absolute', left: 14, bottom: 10, color: 'rgba(255,255,255,.9)', fontSize: 10, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Photo by {background.imageCredit} on Unsplash</a>}
         </AbsoluteFill>
       </div>

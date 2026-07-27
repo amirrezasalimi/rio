@@ -36,6 +36,7 @@ interface EditorStore extends EditorSettings {
   updateTimelineMediaItem: (id: string, patch: Partial<TimelineMediaItem>) => void;
   updateSelectedClip: (patch: Partial<EditorClip>) => void;
   updateSelectedClipVisual: (patch: Partial<ClipVisualSettings>) => void;
+  setSceneSpeed: (sceneSpeed: number) => void;
 }
 
 const initial = createInitialSettings(100);
@@ -50,6 +51,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
       ? {
           ...fallback,
           ...saved,
+          sceneSpeed: saved.sceneSpeed ?? 1,
           clips: saved.clips ?? fallback.clips,
           timelineMedia: saved.timelineMedia ?? [],
           gestureClips: saved.gestureClips ?? [],
@@ -120,4 +122,5 @@ export const useEditorStore = create<EditorStore>((set) => ({
       clips: state.clips.map((clip) => clip.id === state.selectedTimelineItem?.id ? { ...clip, visual: { ...clip.visual, ...patch } } : clip),
     };
   }),
+  setSceneSpeed: (sceneSpeed) => set({ sceneSpeed: Math.max(0.25, Math.min(4, sceneSpeed)) }),
 }));

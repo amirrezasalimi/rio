@@ -89,6 +89,7 @@ function getSerializableProject(): EditorSettings {
     background: state.background,
     media: state.media,
     canvas: state.canvas,
+    sceneSpeed: state.sceneSpeed ?? 1,
   };
 }
 
@@ -133,9 +134,10 @@ function App() {
   const initializedId = useRef<string | undefined>(undefined);
   const assetSourcesRef = useRef<TimelineAssetSource[]>([]);
   const settings = useEditorStore();
+  const sceneSpeed = settings.sceneSpeed ?? 1;
   const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips);
   const projectDurationMs = Math.max(editedDurationMs, settings.timelineLimitMs);
-  const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
+  const durationInFrames = Math.max(1, Math.ceil((projectDurationMs / 1000 * FPS) / sceneSpeed));
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id');
@@ -204,6 +206,7 @@ function App() {
               meshPoints: saved.background.meshPoints?.length ? saved.background.meshPoints : createDefaultMeshPoints(),
             },
             clips: (saved.clips ?? []).map((clip, index, clips) => ({ ...clip, playbackRate: clip.playbackRate ?? 1, timelineStartMs: clip.timelineStartMs ?? clips.slice(0, index).reduce((total, item) => total + item.sourceEndMs - item.sourceStartMs, 0) })),
+            sceneSpeed: saved.sceneSpeed ?? 1,
           } : undefined;
           useEditorStore.getState().initialize(stored.durationMs, migrated);
           setProjectReady(true);
@@ -258,7 +261,10 @@ function App() {
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
-    const update = ({ detail }: { detail: { frame: number } }) => setCurrentTimeMs(detail.frame / FPS * 1000);
+    const update = ({ detail }: { detail: { frame: number } }) => {
+      const activeSpeed = useEditorStore.getState().sceneSpeed ?? 1;
+      setCurrentTimeMs((detail.frame / FPS * 1000) * activeSpeed);
+    };
     player.addEventListener('frameupdate', update);
     return () => player.removeEventListener('frameupdate', update);
   }, [videoUrl]);
@@ -332,9 +338,10 @@ function App() {
   }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY]);
 
   const seek = (timeMs: number) => {
-    const frame = Math.min(durationInFrames - 1, Math.max(0, Math.round(timeMs / 1000 * FPS)));
+    const activeSpeed = settings.sceneSpeed ?? 1;
+    const frame = Math.min(durationInFrames - 1, Math.max(0, Math.round((timeMs / 1000 * FPS) / activeSpeed)));
     playerRef.current?.seekTo(frame);
-    setCurrentTimeMs(frame / FPS * 1000);
+    setCurrentTimeMs((frame / FPS * 1000) * activeSpeed);
   };
 
   const uploadMedia = async (files: FileList, placement?: { timelineStartMs: number; position?: { x: number; y: number } }) => {

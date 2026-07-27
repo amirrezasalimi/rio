@@ -81,9 +81,9 @@ function Effect({ event, ageMs, clip }: { event: ProjectedEvent; ageMs: number; 
   });
 }
 
-export function GestureOverlay({ gestureClips, interactions, clips, crop, timelineMedia, assetSources, canvasWidth, canvasHeight, sourceWidth, sourceHeight, media }: { gestureClips: GestureClip[]; interactions: RecordedInteraction[]; clips: EditorClip[]; crop?: CropArea; timelineMedia: TimelineMediaItem[]; assetSources: TimelineAssetSource[]; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; media: MediaTransform }) {
+export function GestureOverlay({ gestureClips, interactions, clips, crop, timelineMedia, assetSources, canvasWidth, canvasHeight, sourceWidth, sourceHeight, media, sceneSpeed = 1 }: { gestureClips: GestureClip[]; interactions: RecordedInteraction[]; clips: EditorClip[]; crop?: CropArea; timelineMedia: TimelineMediaItem[]; assetSources: TimelineAssetSource[]; canvasWidth: number; canvasHeight: number; sourceWidth: number; sourceHeight: number; media: MediaTransform; sceneSpeed?: number }) {
   const { fps } = useVideoConfig();
-  const timelineMs = useCurrentFrame() / fps * 1_000;
+  const timelineMs = (useCurrentFrame() / fps * 1_000) * sceneSpeed;
 
   return gestureClips.map((gestureClip) => {
     const duration = gestureClip.sourceEndMs - gestureClip.sourceStartMs;

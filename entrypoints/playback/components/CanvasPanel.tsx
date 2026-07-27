@@ -1,4 +1,4 @@
-import { Crosshair, Maximize2, RotateCcw, Share2, Snowflake } from 'lucide-react';
+import { Crosshair, Maximize2, RotateCcw, Share2, Snowflake, Gauge } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { CanvasRatio } from '../editor/types';
@@ -30,6 +30,8 @@ const SOCIAL_PLATFORMS = [...new Set(SOCIAL_PRESETS.map((preset) => preset.platf
 
 export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
   const canvas = useEditorStore((state) => state.canvas);
+  const sceneSpeed = useEditorStore((state) => state.sceneSpeed ?? 1);
+  const setSceneSpeed = useEditorStore((state) => state.setSceneSpeed);
   const recordedMedia = useEditorStore((state) => state.media);
   const selection = useEditorStore((state) => state.selectedTimelineItem);
   const selectedUpload = useEditorStore((state) =>
@@ -165,7 +167,51 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
           <button type="button" onClick={applySize} className="rounded-lg bg-ink px-2 py-1.5 text-[9px] font-semibold text-white">Set</button>
         </div>
       </div>
-      <p className="text-[9px] leading-relaxed text-muted">Canvas size and aspect ratio apply to the complete project.</p>
+      <div className="rounded-xl border border-border bg-cream-50 p-2.5">
+        <div className="mb-2 flex items-center justify-between text-[10px]">
+          <span className="flex items-center gap-1.5 text-muted">
+            <Gauge className="size-3" /> Scene speed
+          </span>
+          <button
+            type="button"
+            onClick={() => setSceneSpeed(1)}
+            className="flex items-center gap-1 font-semibold text-primary-700"
+          >
+            <RotateCcw className="size-3" /> Reset
+          </button>
+        </div>
+        <div className="grid grid-cols-5 gap-1">
+          {[0.5, 0.75, 1, 1.5, 2].map((rate) => (
+            <button
+              key={rate}
+              type="button"
+              onClick={() => setSceneSpeed(rate)}
+              className={`rounded-lg border py-1.5 font-mono text-[9px] font-semibold transition ${
+                sceneSpeed === rate
+                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  : 'border-border bg-surface text-muted hover:border-primary-200'
+              }`}
+            >
+              {rate}×
+            </button>
+          ))}
+        </div>
+        <EditorRange
+          className="mt-3"
+          label="Custom speed"
+          value={sceneSpeed}
+          min={0.25}
+          max={4}
+          step={0.05}
+          suffix="×"
+          onChange={setSceneSpeed}
+        />
+        <p className="mt-2 text-[8px] leading-relaxed text-muted">
+          Speed up or slow down the entire video. Changes preview playback rate and exported video speed.
+        </p>
+      </div>
+
+      <p className="text-[9px] leading-relaxed text-muted">Canvas size, aspect ratio, and speed apply to the complete project.</p>
       </>}
 
       {mode === 'selection' && <>
