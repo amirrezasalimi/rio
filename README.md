@@ -2,6 +2,8 @@
 
 A local-first screen recorder and video editor for Chromium.
 
+<video src="assets/demo.webm" controls autoplay loop muted width="100%"></video>
+
 Record a tab, window, screen, or selected page area. Edit the result on a multi-track timeline, add gesture effects and text, then export to WebM, MP4, or GIF—all in the browser.
 
 > Rio is an early pre-release. Chromium is the current supported target.
