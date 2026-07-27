@@ -20,7 +20,8 @@ async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 
     getEditedDurationMs(props.clips, props.timelineMedia, props.gestureClips, props.textClips),
     props.timelineLimitMs,
   );
-  const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * settings.fps));
+  const sceneSpeed = props.sceneSpeed ?? 1;
+  const durationInFrames = Math.max(1, Math.ceil((projectDurationMs / 1000 * settings.fps) / sceneSpeed));
   const dimensions = getExportDimensions(props.canvas, settings.quality);
   const renderProps = { ...props, renderScale: dimensions.width / props.canvas.width };
   const availability = await canRenderMediaOnWeb({
