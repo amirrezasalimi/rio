@@ -17,6 +17,8 @@ Record a tab, window, screen, or selected page area. Edit the result on a multi-
 - **Recorded gestures:** pointer movement, clicks, double-clicks, drags, and scrolling
 - **Text clips:** installed fonts, weight, size, scale, rotation, fills, gradients, and strokes
 - **Video speed:** `0.25×` to `4×`, synchronized with gestures and export
+- **Scene control:** project-wide playback speed adjustment
+- **Zoom effects:** manual canvas scaling and panning with timeline editing
 - **Visual styling:** frames, borders, shadows, gradients, mesh backgrounds, and custom images
 - **Social presets:** common canvas sizes for Instagram, YouTube, TikTok, Facebook, X, and LinkedIn
 - **Export:** WebM, MP4, and GIF from `480p` to `4K`, with selectable FPS
@@ -90,6 +92,8 @@ Never expose an Unsplash Secret Key in a `WXT_PUBLIC_*` variable.
 | `Ctrl/Cmd + C` | Copy |
 | `Ctrl/Cmd + V` | Paste |
 | `Ctrl/Cmd + D` | Duplicate |
+| `Ctrl/Cmd + Z` | Undo |
+| `Ctrl/Cmd + Y` or `Ctrl/Cmd + Shift + Z` | Redo |
 | `Shift + click` | Multi-select timeline items |
 | `Escape` | Close transient UI or leave move mode |
 | Trackpad pinch / `Ctrl + wheel` | Zoom timeline time |
@@ -104,9 +108,7 @@ WXT · React · TypeScript · Tailwind CSS v4 · Zustand · Remotion · FFmpeg W
 
 ## Status
 
-Rio is actively developed. Camera capture, interrupted-recording recovery, undo/redo, and full cross-browser support are not finished.
-
-See [`PLAN.md`](./PLAN.md) for the detailed roadmap and architecture decisions.
+Rio is actively developed. Camera capture, interrupted-recording recovery, and full cross-browser support are not finished.
 
 ## License
 
