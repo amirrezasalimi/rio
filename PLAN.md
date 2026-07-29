@@ -91,18 +91,31 @@ This document is the implementation checklist for the recorder extension. We wil
 - [ ] Control microphone and captured-audio volume
 - [x] Persist pause-aware page interaction metadata for pointer movement, clicks, double-clicks, drags, and scrolling alongside each recording
 - [x] Add movable and trimmable gesture-effect clips with per-action toggles and customizable cursor, click, drag, and scroll animations
+- [x] Add manual zoom-effect clips with canvas/media targets, editable timeline points, focal-position dragging, wheel level control, and preview/export parity
 - [ ] Add automatic zoom effects driven by recorded interactions
 - [x] Add movable, rotatable, trimmable text clips with installed-font selection, typography, solid/gradient fills, and strokes
 - [x] Add per-video clip playback speed controls with timeline, gesture, preview, and export synchronization
 - [x] Add right-click duplicate/delete context menus and copy, paste, duplicate, and delete keyboard shortcuts for all timeline items
-- [x] Hide empty recording, media, gesture, and text timeline lanes
+- [x] Hide empty recording, media, gesture, text, and zoom timeline lanes
 - [x] Support Shift multi-selection and synchronized movement across timeline item types
 - [x] Keep the original recording as a permanent Add item source while allowing all recording placements to be removed
 - [x] Add a File menu for new projects, recent projects, full ZIP import/export, and complete current-project deletion
 - [x] Add blank projects, original-quality recording clip downloads, and reusable gesture metadata sources from project videos
 - [x] Drop image, video, and audio files directly onto the canvas or timeline to import and place them
 - [ ] Add blur and spotlight annotations
-- [ ] Add undo and redo
+- [ ] Add project-wide undo/redo and a compact history panel
+  - [ ] Define a serializable editor-document snapshot containing all persisted `EditorSettings`, while excluding playback time, canvas viewport pan/zoom, open menus/modals, export progress, object URLs, recording blobs, and other runtime-only state
+  - [ ] Add bounded in-memory history state to the Zustand editor store with labeled past/future entries, `canUndo`/`canRedo`, history reset on project initialization, and redo invalidation after a new edit
+  - [ ] Add transaction APIs for begin, update, commit, cancel, and coalescing so pointer drags, wheel gestures, sliders, color inputs, and text typing create one meaningful history entry instead of one entry per event
+  - [ ] Route every editor mutation through history-aware actions: timeline add/move/trim/split/reorder/delete/duplicate/paste; multi-selection movement; media, gesture, text, and zoom edits; zoom-point edits; canvas/background/mesh/frame/border/shadow settings; playback speed; and timeline duration
+  - [ ] Restore or reconcile timeline selection after undo/redo without treating selection-only changes as document history
+  - [ ] Add keyboard shortcuts: `Cmd/Ctrl+Z` for undo, `Cmd/Ctrl+Shift+Z` and `Ctrl+Y` for redo, while preserving native undo inside inputs, textareas, selects, and contenteditable controls
+  - [ ] Add compact Undo and Redo buttons to the editor header with disabled states, accessible labels, shortcut tooltips, and the next action label
+  - [ ] Add a small dismissible history popover/panel listing recent labeled actions, the current position, and clickable time travel to an earlier or later state
+  - [ ] Keep autosave synchronized with restored document state, but do not persist the session history stack across editor reloads in the first version
+  - [ ] Make imported-asset placement undoable without copying media blobs into snapshots; design library-asset deletion as reversible IndexedDB soft deletion/tombstoning, and keep whole-project deletion/import/navigation outside session undo with explicit confirmation
+  - [ ] Add focused tests for stack semantics, redo invalidation, no-op suppression, bounded history, transaction grouping, selection reconciliation, and asset tombstone restoration
+  - [ ] Verify representative UI flows for timeline drags, range sliders, canvas movement, mesh-point dragging, text typing, zoom focal movement/wheel changes, multi-item edits, and delete/restore behavior
 
 ## Phase 7 — Processing and Export
 
@@ -165,3 +178,5 @@ This document is the implementation checklist for the recorder extension. We wil
 - 2026-07-26: Use a versioned ZIP archive for complete project portability, containing the immutable source recording, interaction metadata, editor settings, and uploaded asset blobs. Imported projects receive fresh recording and asset IDs to avoid overwriting local work.
 - 2026-07-26: Embed Rio gesture data in a versioned binary-safe video footer when downloading recording clips. Project video assets with that footer become selectable gesture-data sources, retaining source duration, action count, timestamps, and crop metadata.
 - 2026-07-27: Download untrimmed original clips directly from the editor's user action. For trimmed clips, use a visible extension processor page, mount recording blobs into FFmpeg WASM through `WORKERFS`, stream-copy the selected range, and require an explicit Download clip click; this avoids duplicate editor memory and Chromium's hidden-renderer Blob download rejection.
+- 2026-07-29: Model manual zoom as independently movable and trimmable effect clips containing ordered focal keyframes. Each point stores local time, canvas-relative focus, and a clamped 1×–5× level; the clip chooses whole-canvas or visual-item targeting plus a shared easing mode so Remotion preview and export resolve identical transforms.
+- 2026-07-29: Treat each zoom point as a trigger rather than a distant interpolation endpoint. Zoom remains neutral before the first point, each point starts a short configurable transition, and the resolved zoom then holds until the next point; this prevents transitions from stretching across timeline gaps.

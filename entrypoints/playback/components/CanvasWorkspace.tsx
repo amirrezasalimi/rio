@@ -24,8 +24,10 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   const selectedRecording = useEditorStore((state) => selection?.kind === 'recording' ? state.clips.find((clip) => clip.id === selection.id) : undefined);
   const selectedUpload = useEditorStore((state) => selection?.kind === 'media' ? state.timelineMedia.find((item) => item.id === selection.id) : undefined);
   const selectedText = useEditorStore((state) => selection?.kind === 'text' ? state.textClips.find((item) => item.id === selection.id) : undefined);
+  const selectedZoom = useEditorStore((state) => selection?.kind === 'zoom' ? state.zoomClips.find((item) => item.id === selection.id) : undefined);
+  const selectedZoomPoint = selectedZoom?.points.find((point) => point.id === selectedZoom.selectedPointId);
   const projectDurationMs = Math.max(
-    getEditedDurationMs(inputProps.clips, inputProps.timelineMedia, inputProps.gestureClips, inputProps.textClips),
+    getEditedDurationMs(inputProps.clips, inputProps.timelineMedia, inputProps.gestureClips, inputProps.textClips, inputProps.zoomClips),
     inputProps.timelineLimitMs,
   );
   const durationInFrames = Math.max(1, Math.ceil(projectDurationMs / 1000 * FPS));
@@ -126,6 +128,30 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     window.addEventListener('pointerup', stop, { once: true });
   };
 
+  const moveZoomPoint = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!selectedZoom || !selectedZoomPoint || !canvasRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const bounds = canvasRef.current.getBoundingClientRect();
+    const update = (clientX: number, clientY: number) => useEditorStore.getState().updateZoomPoint(selectedZoom.id, selectedZoomPoint.id, {
+      positionX: Math.max(0, Math.min(100, (clientX - bounds.left) / bounds.width * 100)),
+      positionY: Math.max(0, Math.min(100, (clientY - bounds.top) / bounds.height * 100)),
+    });
+    update(event.clientX, event.clientY);
+    const move = (moveEvent: PointerEvent) => update(moveEvent.clientX, moveEvent.clientY);
+    const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop, { once: true });
+  };
+
+  const zoomPointWithWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!selectedZoom || !selectedZoomPoint) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const zoom = Math.max(1, Math.min(5, selectedZoomPoint.zoom - event.deltaY * 0.003));
+    useEditorStore.getState().updateZoomPoint(selectedZoom.id, selectedZoomPoint.id, { zoom: Math.round(zoom * 10) / 10 });
+  };
+
   const rotateText = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (!selectedText || !canvasRef.current) return;
     event.preventDefault();
@@ -170,6 +196,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
         <div data-canvas ref={canvasRef} className="relative overflow-hidden bg-surface shadow-2xl shadow-ink/15 ring-1 ring-ink/10" style={{ width: inputProps.canvas.width, height: inputProps.canvas.height }}>
           <Player ref={playerRef} component={VideoComposition} inputProps={inputProps} durationInFrames={durationInFrames} fps={FPS} compositionWidth={inputProps.canvas.width} compositionHeight={inputProps.canvas.height} controls={showControls && !movingMedia} className="size-full" />
           {movingMedia && <div role="application" aria-label="Drag media from its center" onPointerDown={moveMedia} className="absolute z-20 cursor-grab touch-none border-2 border-dashed border-primary-300 bg-primary-500/8 active:cursor-grabbing" style={{ width: overlayWidth, height: overlayHeight, left: `${selectedTransform.positionX}%`, top: `${selectedTransform.positionY}%`, transform: 'translate(-50%, -50%)' }}><span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-ink/82 px-2 py-1 text-[9px] font-semibold text-white">Drag media · Enter done</span></div>}
+          {selectedZoom && selectedZoomPoint && <div role="application" aria-label="Drag zoom focus. Use mouse wheel to change zoom level." onPointerDown={moveZoomPoint} onWheel={zoomPointWithWheel} className="absolute z-30 size-24 -translate-x-1/2 -translate-y-1/2 cursor-move touch-none rounded-full border-2 border-white/70 bg-transparent shadow-[0_0_0_1px_rgba(24,50,74,.2),0_4px_20px_rgba(24,50,74,.18)]" style={{ left: `${selectedZoomPoint.positionX}%`, top: `${selectedZoomPoint.positionY}%` }}><span className="absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70" /><span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink/85 px-2 py-1 text-[9px] font-semibold text-white">{selectedZoomPoint.zoom.toFixed(1)}× · drag · wheel</span></div>}
           {selectedText && <div role="button" tabIndex={0} aria-label="Drag selected text" onPointerDown={moveText} className="absolute z-20 max-w-[90%] cursor-move touch-none whitespace-pre-wrap border-2 border-dashed border-accent-500 px-2 py-1 text-center text-transparent" style={{ left: `${selectedText.positionX}%`, top: `${selectedText.positionY}%`, transform: `translate(-50%, -50%) rotate(${selectedText.rotation}deg) scale(${selectedText.scale / 100})`, transformOrigin: 'center', fontFamily: `"${selectedText.fontFamily}", sans-serif`, fontSize: selectedText.fontSize, fontWeight: selectedText.fontWeight, lineHeight: 1.08, overflowWrap: 'anywhere' }}>{selectedText.text || 'Text'}<span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-accent-500 px-2 py-1 font-sans text-[9px] font-semibold leading-none text-white">Drag text</span><span className="absolute -top-12 left-1/2 h-5 w-px -translate-x-1/2 bg-accent-500" /><button type="button" aria-label="Rotate text" title={`${selectedText.rotation}°`} onPointerDown={rotateText} className="absolute -top-16 left-1/2 grid size-7 -translate-x-1/2 cursor-grab place-items-center rounded-full border-2 border-white bg-accent-500 font-sans text-[9px] font-semibold leading-none text-white shadow-md active:cursor-grabbing">↻</button></div>}
         </div>
       </div>

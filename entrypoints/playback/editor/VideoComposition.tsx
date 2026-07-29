@@ -2,10 +2,11 @@ import { StaticSquircle } from '@squircle-js/react';
 import { Audio, Video } from '@remotion/media';
 import type { CSSProperties, ReactNode } from 'react';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
-import { AbsoluteFill, Freeze, Sequence, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Freeze, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TextClip, TimelineAssetSource, TimelineMediaItem } from './types';
 import { getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getPlaybackRate, getTimelineItemDurationMs } from './types';
 import { GestureOverlay } from './GestureOverlay';
+import { getZoomStyle } from './zoom';
 
 export interface VideoCompositionProps extends EditorSettings, Record<string, unknown> {
   src: string;
@@ -196,29 +197,33 @@ function TextClipSequence({ clip, sceneSpeed }: { clip: TextClip; sceneSpeed: nu
   );
 }
 
-export function VideoComposition({ src, clips, timelineMedia, gestureClips, textClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1, sceneSpeed = 1 }: VideoCompositionProps) {
+export function VideoComposition({ src, clips, timelineMedia, gestureClips, textClips, zoomClips, timelineLimitMs, assetSources, interactions, crop, canvas, sourceWidth, sourceHeight, sourceDurationMs, background, media, frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY, renderScale = 1, sceneSpeed = 1 }: VideoCompositionProps) {
+  const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const timelineTimeMs = frame / fps * 1_000 * sceneSpeed;
   const safeSourceWidth = Math.max(1, sourceWidth);
   const safeSourceHeight = Math.max(1, sourceHeight);
   const defaultVisual: ClipVisualSettings = { frameStyle, borderShape, cornerRadius, cornerSmoothing, borderOpacity, borderWidth, borderColor, shadowStyle, shadowOpacity, shadowLightX, shadowLightY };
   const compositionDurationInFrames = Math.max(
     1,
-    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips, textClips), timelineLimitMs) / 1000 * fps / sceneSpeed),
+    Math.ceil(Math.max(getEditedDurationMs(clips, timelineMedia, gestureClips, textClips, zoomClips), timelineLimitMs) / 1000 * fps / sceneSpeed),
   );
 
   return (
     <AbsoluteFill style={{ background: 'transparent', overflow: 'hidden' }}>
       <div style={{ position: 'relative', width: canvas.width, height: canvas.height, transform: `scale(${renderScale})`, transformOrigin: 'top left' }}>
         <AbsoluteFill style={{ background: background.type === 'transparent' ? 'transparent' : '#fffaf0', overflow: 'hidden' }}>
-          <BackgroundLayer background={background} />
-          {clips.map((clip) => <RecordingClipSequence key={clip.id} clip={clip} src={src} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} sourceDurationMs={sourceDurationMs} defaultVisual={defaultVisual} defaultMedia={media} background={background} sceneSpeed={sceneSpeed} />)}
-          {timelineMedia.map((item) => {
-            const asset = assetSources.find((source) => source.id === item.assetId);
-            return asset ? <TimelineMediaSequence key={item.id} item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} sceneSpeed={sceneSpeed} /> : null;
-          })}
-          <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} timelineMedia={timelineMedia} assetSources={assetSources} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} sceneSpeed={sceneSpeed} />
-          {textClips.map((clip) => <TextClipSequence key={clip.id} clip={clip} sceneSpeed={sceneSpeed} />)}
-          {background.type === 'image' && background.imageCreditUrl && <a href={background.imageCreditUrl} target="_blank" rel="noreferrer" style={{ position: 'absolute', left: 14, bottom: 10, color: 'rgba(255,255,255,.9)', fontSize: 10, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Photo by {background.imageCredit} on Unsplash</a>}
+          <AbsoluteFill style={{ ...getZoomStyle(zoomClips, { kind: 'canvas' }, timelineTimeMs) }}>
+            <BackgroundLayer background={background} />
+            {clips.map((clip) => <AbsoluteFill key={clip.id} style={{ ...getZoomStyle(zoomClips, { kind: 'recording', id: clip.id }, timelineTimeMs) }}><RecordingClipSequence clip={clip} src={src} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} sourceDurationMs={sourceDurationMs} defaultVisual={defaultVisual} defaultMedia={media} background={background} sceneSpeed={sceneSpeed} /></AbsoluteFill>)}
+            {timelineMedia.map((item) => {
+              const asset = assetSources.find((source) => source.id === item.assetId);
+              return asset ? <AbsoluteFill key={item.id} style={{ ...getZoomStyle(zoomClips, { kind: 'media', id: item.id }, timelineTimeMs) }}><TimelineMediaSequence item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} sceneSpeed={sceneSpeed} /></AbsoluteFill> : null;
+            })}
+            <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} timelineMedia={timelineMedia} assetSources={assetSources} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} sceneSpeed={sceneSpeed} />
+            {textClips.map((clip) => <TextClipSequence key={clip.id} clip={clip} sceneSpeed={sceneSpeed} />)}
+            {background.type === 'image' && background.imageCreditUrl && <a href={background.imageCreditUrl} target="_blank" rel="noreferrer" style={{ position: 'absolute', left: 14, bottom: 10, color: 'rgba(255,255,255,.9)', fontSize: 10, textShadow: '0 1px 4px rgba(0,0,0,.6)' }}>Photo by {background.imageCredit} on Unsplash</a>}
+          </AbsoluteFill>
         </AbsoluteFill>
       </div>
     </AbsoluteFill>

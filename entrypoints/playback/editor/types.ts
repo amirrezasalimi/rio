@@ -29,9 +29,34 @@ export type TimelineSelection =
   | { kind: 'recording'; id: string }
   | { kind: 'media'; id: string }
   | { kind: 'gesture'; id: string }
-  | { kind: 'text'; id: string };
+  | { kind: 'text'; id: string }
+  | { kind: 'zoom'; id: string };
 export type GestureAction = 'pointer' | 'click' | 'double-click' | 'drag' | 'scroll';
 export type GestureAnimation = 'pulse' | 'ripple' | 'burst';
+export type ZoomAnimation = 'smooth' | 'ease-in' | 'ease-out' | 'linear' | 'snap';
+export type ZoomTarget =
+  | { kind: 'canvas' }
+  | { kind: 'recording'; id: string }
+  | { kind: 'media'; id: string };
+
+export interface ZoomPoint {
+  id: string;
+  timeMs: number;
+  positionX: number;
+  positionY: number;
+  zoom: number;
+}
+
+export interface ZoomClip {
+  id: string;
+  timelineStartMs: number;
+  durationMs: number;
+  target: ZoomTarget;
+  animation: ZoomAnimation;
+  transitionDurationMs: number;
+  selectedPointId?: string;
+  points: ZoomPoint[];
+}
 
 export interface GestureSettings {
   enabled: Record<GestureAction, boolean>;
@@ -190,6 +215,7 @@ export interface EditorSettings {
   timelineMedia: TimelineMediaItem[];
   gestureClips: GestureClip[];
   textClips: TextClip[];
+  zoomClips: ZoomClip[];
   timelineLimitMs: number;
   frameStyle: FrameStyle;
   borderShape: BorderShape;
@@ -349,11 +375,26 @@ export function getGestureClipDurationMs(clip: GestureClip): number {
   return Math.max(0, clip.sourceEndMs - clip.sourceStartMs);
 }
 
-export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = [], gestureClips: GestureClip[] = [], textClips: TextClip[] = []): number {
+export function getEditedDurationMs(clips: EditorClip[], timelineMedia: TimelineMediaItem[] = [], gestureClips: GestureClip[] = [], textClips: TextClip[] = [], zoomClips: ZoomClip[] = []): number {
   const clipEnd = clips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getClipDurationMs(clip)), 0);
   const mediaEnd = timelineMedia.reduce((duration, item) => Math.max(duration, item.timelineStartMs + getTimelineItemDurationMs(item)), clipEnd);
   const gestureEnd = gestureClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + getGestureClipDurationMs(clip)), mediaEnd);
-  return textClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + clip.durationMs), gestureEnd);
+  const textEnd = textClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + clip.durationMs), gestureEnd);
+  return zoomClips.reduce((duration, clip) => Math.max(duration, clip.timelineStartMs + clip.durationMs), textEnd);
+}
+
+export function createDefaultZoomClip(timelineStartMs = 0, durationMs = 5_000): ZoomClip {
+  const firstPoint: ZoomPoint = { id: crypto.randomUUID(), timeMs: 0, positionX: 50, positionY: 50, zoom: 1 };
+  return {
+    id: crypto.randomUUID(),
+    timelineStartMs,
+    durationMs: Math.max(150, durationMs),
+    target: { kind: 'canvas' },
+    animation: 'smooth',
+    transitionDurationMs: 400,
+    selectedPointId: firstPoint.id,
+    points: [firstPoint],
+  };
 }
 
 export function createDefaultTextClip(timelineStartMs = 0): TextClip {
@@ -406,6 +447,7 @@ export function createInitialSettings(durationMs: number): EditorSettings {
     timelineMedia: [],
     gestureClips: [],
     textClips: [],
+    zoomClips: [],
     timelineLimitMs: Math.max(durationMs, 1_000),
     frameStyle: 'default',
     borderShape: 'curved',

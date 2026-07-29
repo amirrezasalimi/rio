@@ -17,7 +17,8 @@ export function getGroupMoveDelta(requestedDeltaMs: number): number {
     if (selection.kind === 'recording') return state.clips.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
     if (selection.kind === 'media') return state.timelineMedia.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
     if (selection.kind === 'gesture') return state.gestureClips.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
-    return state.textClips.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
+    if (selection.kind === 'text') return state.textClips.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
+    return state.zoomClips.find((item) => item.id === selection.id)?.timelineStartMs ?? [];
   });
   return Math.max(starts.length ? -Math.min(...starts) : 0, requestedDeltaMs);
 }
@@ -34,6 +35,7 @@ export function moveSelectedTimelineItems(deltaMs: number, initialStarts: Map<st
   state.setTimelineMedia((items) => items.map((item) => move('media', item)));
   state.setGestureClips((items) => items.map((item) => move('gesture', item)));
   state.setTextClips((items) => items.map((item) => move('text', item)));
+  state.setZoomClips((items) => items.map((item) => move('zoom', item)));
 }
 
 export function captureSelectedTimelineStarts(): Map<string, number> {
@@ -46,7 +48,9 @@ export function captureSelectedTimelineStarts(): Map<string, number> {
         ? state.timelineMedia.find((candidate) => candidate.id === selection.id)
         : selection.kind === 'gesture'
           ? state.gestureClips.find((candidate) => candidate.id === selection.id)
-          : state.textClips.find((candidate) => candidate.id === selection.id);
+          : selection.kind === 'text'
+            ? state.textClips.find((candidate) => candidate.id === selection.id)
+            : state.zoomClips.find((candidate) => candidate.id === selection.id);
     if (item) starts.set(selectionKey(selection), item.timelineStartMs);
   }
   return starts;

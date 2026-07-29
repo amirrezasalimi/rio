@@ -98,6 +98,10 @@ Never expose an Unsplash Secret Key in a `WXT_PUBLIC_*` variable.
 
 WXT · React · TypeScript · Tailwind CSS v4 · Zustand · Remotion · FFmpeg WASM · IndexedDB
 
+## Known bugs
+
+- **Export GIF:** Exporting to GIF may fail or experience issues due to memory constraints or FFmpeg WASM limitations in the browser.
+
 ## Status
 
 Rio is actively developed. Camera capture, interrupted-recording recovery, undo/redo, and full cross-browser support are not finished.

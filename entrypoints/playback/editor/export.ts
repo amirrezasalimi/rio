@@ -17,7 +17,7 @@ const WASM_URL = new URL('/ffmpeg/ffmpeg-core.wasm', window.location.href).href;
 
 async function renderStyledVideo(props: VideoCompositionProps, format: 'webm' | 'mp4', settings: ExportSettings, onProgress: (progress: number) => void): Promise<Blob> {
   const projectDurationMs = Math.max(
-    getEditedDurationMs(props.clips, props.timelineMedia, props.gestureClips, props.textClips),
+    getEditedDurationMs(props.clips, props.timelineMedia, props.gestureClips, props.textClips, props.zoomClips),
     props.timelineLimitMs,
   );
   const sceneSpeed = props.sceneSpeed ?? 1;

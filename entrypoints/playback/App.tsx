@@ -7,7 +7,7 @@ import { EditorSidebar } from './components/EditorSidebar'; import { ExportMenu 
 import { FileMenu } from './components/FileMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
-import { copySelectedTimelineItem, deleteSelectedTimelineItem, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
+import { copySelectedTimelineItem, deleteSelectedTimelineItem, deleteSelectedZoomPoint, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
 import { downloadRecordingClip } from './editor/clipDownload'; import { exportRecording } from './editor/export'; import { readGestureMetadata } from './editor/gestureMetadata';
 import { createTimelineMediaPlacement } from './editor/mediaPlacement';
 import { exportProjectArchive, importProjectArchive } from './editor/projectArchive';
@@ -74,6 +74,7 @@ function getSerializableProject(): EditorSettings {
     timelineMedia: state.timelineMedia,
     gestureClips: state.gestureClips,
     textClips: state.textClips,
+    zoomClips: state.zoomClips,
     timelineLimitMs: state.timelineLimitMs,
     frameStyle: state.frameStyle,
     borderShape: state.borderShape,
@@ -135,7 +136,7 @@ function App() {
   const assetSourcesRef = useRef<TimelineAssetSource[]>([]);
   const settings = useEditorStore();
   const sceneSpeed = settings.sceneSpeed ?? 1;
-  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips);
+  const editedDurationMs = getEditedDurationMs(settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips, settings.zoomClips);
   const projectDurationMs = Math.max(editedDurationMs, settings.timelineLimitMs);
   const durationInFrames = Math.max(1, Math.ceil((projectDurationMs / 1000 * FPS) / sceneSpeed));
 
@@ -176,6 +177,13 @@ function App() {
               fadeOutMs: item.fadeOutMs ?? 0,
               holdLastFrame: item.holdLastFrame ?? false,
               playbackRate: item.playbackRate ?? 1,
+            })),
+            zoomClips: (saved.zoomClips ?? []).map((clip) => ({
+              ...clip,
+              animation: clip.animation ?? 'smooth',
+              transitionDurationMs: clip.transitionDurationMs ?? 400,
+              target: clip.target ?? { kind: 'canvas' },
+              points: (clip.points ?? []).map((point) => ({ ...point, zoom: Math.max(1, Math.min(5, point.zoom ?? 1)), positionX: point.positionX ?? 50, positionY: point.positionY ?? 50 })),
             })),
             textClips: (saved.textClips ?? []).map((clip) => ({
               ...clip,
@@ -287,7 +295,7 @@ function App() {
       } else if (modifier && event.key.toLowerCase() === 'd') {
         if (duplicateSelectedTimelineItem()) event.preventDefault();
       } else if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (deleteSelectedTimelineItem()) event.preventDefault();
+        if (deleteSelectedZoomPoint() || deleteSelectedTimelineItem()) event.preventDefault();
       } else if (event.code === 'Space') {
         event.preventDefault();
         playerRef.current?.toggle();
@@ -314,6 +322,7 @@ function App() {
     timelineMedia: settings.timelineMedia,
     gestureClips: settings.gestureClips,
     textClips: settings.textClips,
+    zoomClips: settings.zoomClips,
     timelineLimitMs: settings.timelineLimitMs,
     assetSources,
     background: settings.background,
@@ -336,7 +345,7 @@ function App() {
     interactions: recording?.interactions ?? [],
     crop: recording?.crop,
     sceneSpeed: settings.sceneSpeed ?? 1,
-  }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY, settings.sceneSpeed]);
+  }), [videoUrl, sourceSize, recording?.durationMs, recording?.interactions, recording?.crop, assetSources, settings.clips, settings.timelineMedia, settings.gestureClips, settings.textClips, settings.zoomClips, settings.timelineLimitMs, settings.background, settings.media, settings.canvas, settings.frameStyle, settings.borderShape, settings.cornerRadius, settings.cornerSmoothing, settings.borderOpacity, settings.borderWidth, settings.borderColor, settings.shadowStyle, settings.shadowOpacity, settings.shadowLightX, settings.shadowLightY, settings.sceneSpeed]);
 
   const seek = (timeMs: number) => {
     const activeSpeed = settings.sceneSpeed ?? 1;

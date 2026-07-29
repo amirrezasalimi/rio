@@ -6,6 +6,7 @@ import {
   ImagePlus,
   MousePointerClick,
   Plus,
+  Search,
   Scissors,
   Trash2,
   Type,
@@ -38,6 +39,7 @@ interface MediaLibraryProps {
   onAddGesture: () => void;
   onAddOriginal: () => void;
   onAddText: () => void;
+  onAddZoom: () => void;
   onSplitClip: () => void;
   canAddGesture: boolean;
 }
@@ -104,6 +106,7 @@ export function MediaLibrary({
   onAddGesture,
   onAddOriginal,
   onAddText,
+  onAddZoom,
   onSplitClip,
   canAddGesture,
 }: MediaLibraryProps) {
@@ -206,7 +209,8 @@ export function MediaLibrary({
             <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><ImagePlus className="size-3.5 text-primary-600" /> Image</button>
             <button type="button" disabled={!canAddGesture} onClick={() => { onAddGesture(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300 disabled:opacity-40"><MousePointerClick className="size-3.5 text-primary-600" /> Gestures</button>
             <button type="button" onClick={() => { onSplitClip(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Scissors className="size-3.5 text-primary-600" /> Split clip</button>
-            <button type="button" onClick={() => { onAddText(); setOpen(false); }} className="col-span-2 flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Type className="size-3.5 text-primary-600" /> Text</button>
+            <button type="button" onClick={() => { onAddText(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Type className="size-3.5 text-primary-600" /> Text</button>
+            <button type="button" onClick={() => { onAddZoom(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Search className="size-3.5 text-primary-600" /> Zoom</button>
           </div>
           <p className="mb-1 px-1 text-[8px] font-semibold uppercase tracking-wide text-muted">Project media</p>
           <div className="max-h-36 space-y-1 overflow-y-auto">

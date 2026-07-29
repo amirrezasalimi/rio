@@ -8,6 +8,7 @@ import { CanvasPanel } from './CanvasPanel';
 import { EditorRange } from './EditorRange';
 import { GestureSettingsPanel } from './GestureSettingsPanel';
 import { TextSettingsPanel } from './TextSettingsPanel';
+import { ZoomSettingsPanel } from './ZoomSettingsPanel';
 
 const FRAME_STYLES: Array<{ value: FrameStyle; label: string }> = [
   { value: 'default', label: 'Default' },
@@ -86,6 +87,9 @@ export function EditorSidebar() {
   const selectedGesture = store.selectedTimelineItem?.kind === 'gesture'
     ? store.gestureClips.find((clip) => clip.id === store.selectedTimelineItem?.id)
     : undefined;
+  const selectedZoom = store.selectedTimelineItem?.kind === 'zoom'
+    ? store.zoomClips.find((clip) => clip.id === store.selectedTimelineItem?.id)
+    : undefined;
   const selectedClip = store.selectedTimelineItem?.kind === 'recording'
     ? store.clips.find((clip) => clip.id === store.selectedTimelineItem?.id)
     : undefined;
@@ -106,7 +110,7 @@ export function EditorSidebar() {
       });
     }
   };
-  const hasSelection = Boolean(selectedClip || selectedMedia || selectedGesture || selectedText);
+  const hasSelection = Boolean(selectedClip || selectedMedia || selectedGesture || selectedText || selectedZoom);
   const supportsVisualSettings = Boolean(selectedClip || selectedVisualMedia);
   const speedItem = selectedClip ?? (selectedMedia?.type === 'video' ? selectedMedia : undefined);
   const playbackRate = speedItem ? getPlaybackRate(speedItem) : 1;
@@ -122,7 +126,9 @@ export function EditorSidebar() {
         ? 'Gesture effects'
         : selectedText
           ? 'Text settings'
-          : 'Project settings';
+          : selectedZoom
+            ? 'Zoom settings'
+            : 'Project settings';
 
   return (
     <aside className="min-h-0 overflow-y-auto border-r border-border bg-surface">
@@ -133,6 +139,7 @@ export function EditorSidebar() {
 
       {selectedGesture && <GestureSettingsPanel />}
       {selectedText && <TextSettingsPanel />}
+      {selectedZoom && <ZoomSettingsPanel />}
 
       {speedItem && <Section icon={Gauge} title="Playback speed">
         <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => updatePlaybackRate(rate)} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
@@ -140,7 +147,7 @@ export function EditorSidebar() {
         <p className="mt-2 text-[8px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
       </Section>}
 
-      {!selectedGesture && !selectedText && supportsVisualSettings && <Section icon={Frame} title="Media frame">
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Frame} title="Media frame">
         <div className="grid grid-cols-2 gap-1.5">
           {FRAME_STYLES.map((style) => (
             <button key={style.value} type="button" onClick={() => updateVisual({ frameStyle: style.value })} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}>
@@ -151,7 +158,7 @@ export function EditorSidebar() {
         </div>
       </Section>}
 
-      {!selectedGesture && !selectedText && supportsVisualSettings && <Section icon={Shapes} title="Border shape">
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Shapes} title="Border shape">
         <div className="grid grid-cols-3 gap-1.5">
           {shapes.map((shape) => (
             <button key={shape} type="button" onClick={() => updateVisual({ borderShape: shape })} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
@@ -172,9 +179,9 @@ export function EditorSidebar() {
 
       {!hasSelection && <Section icon={Palette} title="Background"><BackgroundPanel /></Section>}
       {!hasSelection && <Section icon={LayoutTemplate} title="Canvas"><CanvasPanel mode="general" /></Section>}
-      {hasSelection && !selectedGesture && !selectedText && <Section icon={LayoutTemplate} title={selectedMedia ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} controls` : 'Recording controls'}><CanvasPanel mode="selection" /></Section>}
+      {hasSelection && !selectedGesture && !selectedText && !selectedZoom && <Section icon={LayoutTemplate} title={selectedMedia ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} controls` : 'Recording controls'}><CanvasPanel mode="selection" /></Section>}
 
-      {!selectedGesture && !selectedText && supportsVisualSettings && <Section icon={Sparkles} title="Shadow">
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Sparkles} title="Shadow">
         <div className="grid grid-cols-4 gap-1.5">
           {shadows.map((shadow) => (
             <button key={shadow} type="button" onClick={() => updateVisual({ shadowStyle: shadow })} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>

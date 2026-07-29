@@ -1,12 +1,13 @@
 import { useEditorStore } from './store';
-import type { EditorClip, GestureClip, TextClip, TimelineMediaItem, TimelineSelection } from './types';
+import type { EditorClip, GestureClip, TextClip, TimelineMediaItem, TimelineSelection, ZoomClip } from './types';
 import { getClipDurationMs, getGestureClipDurationMs, getTimelineItemDurationMs } from './types';
 
 type ClipboardItem =
   | { kind: 'recording'; item: EditorClip }
   | { kind: 'media'; item: TimelineMediaItem }
   | { kind: 'gesture'; item: GestureClip }
-  | { kind: 'text'; item: TextClip };
+  | { kind: 'text'; item: TextClip }
+  | { kind: 'zoom'; item: ZoomClip };
 
 let clipboard: ClipboardItem | undefined;
 const clone = <T,>(value: T): T => structuredClone(value);
@@ -27,7 +28,11 @@ function selectedItem(): ClipboardItem | undefined {
     const item = state.gestureClips.find((clip) => clip.id === selection.id);
     return item ? { kind: selection.kind, item: clone(item) } : undefined;
   }
-  const item = state.textClips.find((clip) => clip.id === selection.id);
+  if (selection.kind === 'text') {
+    const item = state.textClips.find((clip) => clip.id === selection.id);
+    return item ? { kind: selection.kind, item: clone(item) } : undefined;
+  }
+  const item = state.zoomClips.find((clip) => clip.id === selection.id);
   return item ? { kind: selection.kind, item: clone(item) } : undefined;
 }
 
@@ -44,7 +49,8 @@ function insert(item: ClipboardItem): TimelineSelection {
   if (item.kind === 'recording') state.setClips((current) => [...current, copy as EditorClip]);
   else if (item.kind === 'media') state.setTimelineMedia((current) => [...current, copy as TimelineMediaItem]);
   else if (item.kind === 'gesture') state.setGestureClips((current) => [...current, copy as GestureClip]);
-  else state.setTextClips((current) => [...current, copy as TextClip]);
+  else if (item.kind === 'text') state.setTextClips((current) => [...current, copy as TextClip]);
+  else state.setZoomClips((current) => [...current, copy as ZoomClip]);
   const selection = { kind: item.kind, id: copy.id } as TimelineSelection;
   state.setSelectedTimelineItem(selection);
   return selection;
@@ -72,6 +78,19 @@ export function duplicateSelectedTimelineItem(): boolean {
   return true;
 }
 
+export function deleteSelectedZoomPoint(): boolean {
+  const state = useEditorStore.getState();
+  const selection = state.selectedTimelineItem;
+  if (selection?.kind !== 'zoom') return false;
+  const clip = state.zoomClips.find((item) => item.id === selection.id);
+  if (!clip?.selectedPointId || !clip.points.some((point) => point.id === clip.selectedPointId)) return false;
+  state.updateZoomClip(clip.id, {
+    points: clip.points.filter((point) => point.id !== clip.selectedPointId),
+    selectedPointId: undefined,
+  });
+  return true;
+}
+
 export function deleteSelectedTimelineItem(): boolean {
   const state = useEditorStore.getState();
   const selection = state.selectedTimelineItem;
@@ -79,7 +98,8 @@ export function deleteSelectedTimelineItem(): boolean {
   if (selection.kind === 'recording') state.setClips((current) => current.filter((item) => item.id !== selection.id));
   else if (selection.kind === 'media') state.setTimelineMedia((current) => current.filter((item) => item.id !== selection.id));
   else if (selection.kind === 'gesture') state.setGestureClips((current) => current.filter((item) => item.id !== selection.id));
-  else state.setTextClips((current) => current.filter((item) => item.id !== selection.id));
+  else if (selection.kind === 'text') state.setTextClips((current) => current.filter((item) => item.id !== selection.id));
+  else state.setZoomClips((current) => current.filter((item) => item.id !== selection.id));
   const next = useEditorStore.getState();
   const fallback = next.clips[0]
     ? { kind: 'recording' as const, id: next.clips[0].id }
@@ -89,7 +109,9 @@ export function deleteSelectedTimelineItem(): boolean {
         ? { kind: 'gesture' as const, id: next.gestureClips[0].id }
         : next.textClips[0]
           ? { kind: 'text' as const, id: next.textClips[0].id }
-          : undefined;
+          : next.zoomClips[0]
+            ? { kind: 'zoom' as const, id: next.zoomClips[0].id }
+            : undefined;
   state.setSelectedTimelineItem(fallback);
   return true;
 }

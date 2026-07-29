@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureDataSource, GestureSettings, MediaTransform, ShadowStyle, TextClip, TimelineMediaItem, TimelineSelection } from './types';
+import type { BackgroundSettings, BorderShape, CanvasRatio, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, GestureClip, GestureDataSource, GestureSettings, MediaTransform, ShadowStyle, TextClip, TimelineMediaItem, TimelineSelection, ZoomClip, ZoomPoint } from './types';
 import { CANVAS_SIZES, createInitialSettings } from './types';
 
 interface EditorStore extends EditorSettings {
@@ -27,7 +27,10 @@ interface EditorStore extends EditorSettings {
   setGestureClips: (gestureClips: GestureClip[] | ((current: GestureClip[]) => GestureClip[])) => void;
   setGestureSources: (sources: GestureDataSource[]) => void;
   setTextClips: (textClips: TextClip[] | ((current: TextClip[]) => TextClip[])) => void;
+  setZoomClips: (zoomClips: ZoomClip[] | ((current: ZoomClip[]) => ZoomClip[])) => void;
   updateTextClip: (id: string, patch: Partial<TextClip>) => void;
+  updateZoomClip: (id: string, patch: Partial<ZoomClip>) => void;
+  updateZoomPoint: (clipId: string, pointId: string, patch: Partial<ZoomPoint>) => void;
   updateGestureClip: (id: string, patch: Partial<Omit<GestureClip, 'settings'>>) => void;
   updateGestureSettings: (id: string, patch: Partial<GestureSettings>) => void;
   setTimelineLimitMs: (timelineLimitMs: number) => void;
@@ -56,6 +59,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
           timelineMedia: saved.timelineMedia ?? [],
           gestureClips: saved.gestureClips ?? [],
           textClips: saved.textClips ?? [],
+          zoomClips: saved.zoomClips ?? [],
         }
       : fallback;
     const selection = settings.clips[0] ? { kind: 'recording' as const, id: settings.clips[0].id } : undefined;
@@ -84,8 +88,18 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setGestureClips: (next) => set((state) => ({ gestureClips: typeof next === 'function' ? next(state.gestureClips) : next })),
   setGestureSources: (gestureSources) => set({ gestureSources }),
   setTextClips: (next) => set((state) => ({ textClips: typeof next === 'function' ? next(state.textClips) : next })),
+  setZoomClips: (next) => set((state) => ({ zoomClips: typeof next === 'function' ? next(state.zoomClips) : next })),
   updateTextClip: (id, patch) => set((state) => ({
     textClips: state.textClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),
+  })),
+  updateZoomClip: (id, patch) => set((state) => ({
+    zoomClips: state.zoomClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),
+  })),
+  updateZoomPoint: (clipId, pointId, patch) => set((state) => ({
+    zoomClips: state.zoomClips.map((clip) => clip.id === clipId ? {
+      ...clip,
+      points: clip.points.map((point) => point.id === pointId ? { ...point, ...patch } : point),
+    } : clip),
   })),
   updateGestureClip: (id, patch) => set((state) => ({
     gestureClips: state.gestureClips.map((clip) => clip.id === id ? { ...clip, ...patch } : clip),

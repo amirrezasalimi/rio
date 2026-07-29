@@ -13,7 +13,7 @@ import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../ed
 import { useEditorStore } from '../editor/store';
 import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
 import type { EditorClip, GestureClip, TimelineAssetSource, TimelineMediaItem } from '../editor/types';
-import { createDefaultGestureSettings, createDefaultTextClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate, getTimelineItemDurationMs, getGestureClipDurationMs } from '../editor/types';
+import { createDefaultGestureSettings, createDefaultTextClip, createDefaultZoomClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate, getTimelineItemDurationMs, getGestureClipDurationMs } from '../editor/types';
 import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
@@ -21,6 +21,7 @@ import { TextTimelineLane } from './TextTimelineLane';
 import { TimelineMaxTimeInput } from './TimelineMaxTimeInput';
 import { TimelineRuler } from './TimelineRuler';
 import { TimelineZoomControls } from './TimelineZoomControls';
+import { ZoomTimelineLane } from './ZoomTimelineLane';
 
 const MIN_CLIP_MS = 150;
 const SNAP_MS = 50;
@@ -77,6 +78,8 @@ export function Timeline({
   const timelineMedia = useEditorStore((state) => state.timelineMedia);
   const gestureClips = useEditorStore((state) => state.gestureClips);
   const textClips = useEditorStore((state) => state.textClips);
+  const zoomClips = useEditorStore((state) => state.zoomClips);
+  const setZoomClips = useEditorStore((state) => state.setZoomClips);
   const setGestureClips = useEditorStore((state) => state.setGestureClips);
   const setTextClips = useEditorStore((state) => state.setTextClips);
   const setTimelineMedia = useEditorStore((state) => state.setTimelineMedia);
@@ -97,7 +100,7 @@ export function Timeline({
   const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const editedRecordingDurationMs = getEditedDurationMs(clips);
-  const contentDurationMs = getEditedDurationMs(clips, timelineMedia, gestureClips, textClips);
+  const contentDurationMs = getEditedDurationMs(clips, timelineMedia, gestureClips, textClips, zoomClips);
   const projectDurationMs = Math.max(timelineLimitMs, contentDurationMs, 1_000);
   const trailingEditSpaceMs = Math.max(5_000, projectDurationMs * 0.2);
   // Keep empty space after the final item so an end handle never sits against
@@ -132,6 +135,11 @@ export function Timeline({
     const clip = createDefaultTextClip(currentTimeMs);
     setTextClips((current) => [...current, clip]);
     setSelection({ kind: 'text', id: clip.id });
+  };
+  const addZoom = () => {
+    const clip = createDefaultZoomClip(currentTimeMs, Math.max(1_000, Math.min(5_000, projectDurationMs - currentTimeMs)));
+    setZoomClips((current) => [...current, clip]);
+    setSelection({ kind: 'zoom', id: clip.id });
   };
   const addGesture = () => {
     const fallbackSource = interactionCount === 0 ? assets.find((asset) => asset.type === 'video' && asset.interactions?.length) : undefined;
@@ -488,6 +496,7 @@ export function Timeline({
             onAddGesture={addGesture}
             onAddOriginal={addOriginal}
             onAddText={addText}
+            onAddZoom={addZoom}
             onSplitClip={split}
             canAddGesture={interactionCount > 0 || assets.some((asset) => asset.type === 'video' && asset.interactions?.length)}
           />
@@ -611,6 +620,7 @@ export function Timeline({
               );
             })}
           </div>}
+          <ZoomTimelineLane timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
           <TextTimelineLane timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
           <GestureTimelineLane editedRecordingDurationMs={editedRecordingDurationMs} timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
           <MediaTimelineLane
