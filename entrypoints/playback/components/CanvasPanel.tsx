@@ -28,6 +28,8 @@ const SOCIAL_PRESETS = [
 
 const SOCIAL_PLATFORMS = [...new Set(SOCIAL_PRESETS.map((preset) => preset.platform))];
 
+import { useHistoryStore } from '../editor/history';
+
 export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
   const canvas = useEditorStore((state) => state.canvas);
   const sceneSpeed = useEditorStore((state) => state.sceneSpeed ?? 1);
@@ -116,6 +118,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             key={ratio.value}
             title={ratio.label}
             onClick={() => {
+              useHistoryStore.getState().record('Change canvas ratio');
               setCanvasRatio(ratio.value);
               setSocialPresetId('');
               const preset = useEditorStore.getState().canvas;
@@ -135,7 +138,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
 
       <label className="block rounded-xl border border-border bg-cream-50 p-2.5">
         <span className="mb-2 flex items-center gap-1.5 text-[10px] text-muted"><Share2 className="size-3" /> Social media preset</span>
-        <select aria-label="Social media canvas preset" value={socialPresetId} onChange={(event) => applySocialPreset(event.currentTarget.value)} className="w-full cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 text-[10px] font-semibold text-ink outline-none transition focus:border-primary-300">
+        <select aria-label="Social media canvas preset" value={socialPresetId} onChange={(event) => { useHistoryStore.getState().record('Apply canvas preset'); applySocialPreset(event.currentTarget.value); }} className="w-full cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 text-[10px] font-semibold text-ink outline-none transition focus:border-primary-300">
           <option value="">Custom size</option>
           {SOCIAL_PLATFORMS.map((platform) => <optgroup key={platform} label={platform}>{SOCIAL_PRESETS.filter((preset) => preset.platform === platform).map((preset) => <option key={preset.id} value={preset.id}>{preset.label} — {preset.width} × {preset.height}</option>)}</optgroup>)}
         </select>
@@ -150,6 +153,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
           <button
             type="button"
             onClick={() => {
+              useHistoryStore.getState().record('Reset canvas size');
               resetCanvas();
               setSocialPresetId('');
               setWidth('1280');
@@ -161,10 +165,10 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
           </button>
         </div>
         <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1.5">
-          <input aria-label="Canvas width" inputMode="numeric" value={width} onChange={(event) => setWidth(event.target.value.replace(/\D/g, ''))} onKeyDown={(event) => { if (event.key === 'Enter') applySize(); }} className="min-w-0 rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-[10px] outline-none focus:border-primary-300" />
+          <input aria-label="Canvas width" inputMode="numeric" value={width} onChange={(event) => setWidth(event.target.value.replace(/\D/g, ''))} onBlur={() => applySize()} onKeyDown={(event) => { if (event.key === 'Enter') applySize(); }} className="min-w-0 rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-[10px] outline-none focus:border-primary-300" />
           <span className="text-muted">×</span>
-          <input aria-label="Canvas height" inputMode="numeric" value={height} onChange={(event) => setHeight(event.target.value.replace(/\D/g, ''))} onKeyDown={(event) => { if (event.key === 'Enter') applySize(); }} className="min-w-0 rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-[10px] outline-none focus:border-primary-300" />
-          <button type="button" onClick={applySize} className="rounded-lg bg-ink px-2 py-1.5 text-[9px] font-semibold text-white">Set</button>
+          <input aria-label="Canvas height" inputMode="numeric" value={height} onChange={(event) => setHeight(event.target.value.replace(/\D/g, ''))} onBlur={() => applySize()} onKeyDown={(event) => { if (event.key === 'Enter') applySize(); }} className="min-w-0 rounded-lg border border-border bg-surface px-2 py-1.5 font-mono text-[10px] outline-none focus:border-primary-300" />
+          <button type="button" onClick={() => { useHistoryStore.getState().record('Set canvas size'); applySize(); }} className="rounded-lg bg-ink px-2 py-1.5 text-[9px] font-semibold text-white">Set</button>
         </div>
       </div>
       <div className="rounded-xl border border-border bg-cream-50 p-2.5">
@@ -174,7 +178,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
           </span>
           <button
             type="button"
-            onClick={() => setSceneSpeed(1)}
+            onClick={() => { useHistoryStore.getState().record('Reset playback speed'); setSceneSpeed(1); }}
             className="flex items-center gap-1 font-semibold text-primary-700"
           >
             <RotateCcw className="size-3" /> Reset
@@ -185,7 +189,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             <button
               key={rate}
               type="button"
-              onClick={() => setSceneSpeed(rate)}
+              onClick={() => { useHistoryStore.getState().record('Change playback speed'); setSceneSpeed(rate); }}
               className={`rounded-lg border py-1.5 font-mono text-[9px] font-semibold transition ${
                 sceneSpeed === rate
                   ? 'border-primary-400 bg-primary-50 text-primary-700'
@@ -269,14 +273,14 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-700"><Snowflake className="size-3.5" /></span>
             <span><span className="block text-[10px] font-semibold text-ink">Hold last frame</span><span className="block text-[8px] leading-relaxed text-muted">Keep the final frame visible after this clip ends.</span></span>
           </span>
-          <input type="checkbox" checked={selectedUpload.holdLastFrame} onChange={(event) => updateTimelineMediaItem(selectedUpload.id, { holdLastFrame: event.currentTarget.checked })} className="peer sr-only" />
+          <input type="checkbox" checked={selectedUpload.holdLastFrame} onChange={(event) => { useHistoryStore.getState().record('Toggle hold last frame'); updateTimelineMediaItem(selectedUpload.id, { holdLastFrame: event.currentTarget.checked }); }} className="peer sr-only" />
           <span className="relative h-5 w-9 shrink-0 rounded-full bg-border transition peer-checked:bg-primary-500 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-4" />
         </label>
       )}
 
       <div className="grid grid-cols-2 gap-1.5">
-        <button type="button" disabled={isUploadedMedia && selectedUpload.type === 'audio'} onClick={() => updateTransform({ positionX: 50, positionY: 50 })} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50 disabled:opacity-35"><Crosshair className="size-3" /> Center</button>
-        <button type="button" onClick={resetTransform} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"><RotateCcw className="size-3" /> Reset clip</button>
+        <button type="button" disabled={isUploadedMedia && selectedUpload.type === 'audio'} onClick={() => { useHistoryStore.getState().record('Center media'); updateTransform({ positionX: 50, positionY: 50 }); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50 disabled:opacity-35"><Crosshair className="size-3" /> Center</button>
+        <button type="button" onClick={() => { useHistoryStore.getState().record('Reset clip transform'); resetTransform(); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"><RotateCcw className="size-3" /> Reset clip</button>
       </div>
       <p className="text-[9px] leading-relaxed text-muted">
         {isUploadedMedia

@@ -1,3 +1,4 @@
+import { useHistoryStore } from './history';
 import { useEditorStore } from './store';
 import type { TimelineSelection } from './types';
 
@@ -23,7 +24,12 @@ export function getGroupMoveDelta(requestedDeltaMs: number): number {
   return Math.max(starts.length ? -Math.min(...starts) : 0, requestedDeltaMs);
 }
 
+export function setTimelineItemSelection(selection: TimelineSelection | undefined) {
+  useEditorStore.getState().setSelectedTimelineItem(selection);
+}
+
 export function moveSelectedTimelineItems(deltaMs: number, initialStarts: Map<string, number>): void {
+  useHistoryStore.getState().beginTransaction('Move timeline items');
   const state = useEditorStore.getState();
   const selected = new Set(state.selectedTimelineItems.map(selectionKey));
   const move = <T extends { id: string; timelineStartMs: number }>(kind: TimelineSelection['kind'], item: T): T => {

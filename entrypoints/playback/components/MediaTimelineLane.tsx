@@ -95,6 +95,8 @@ function AudioEnvelope({ item }: { item: TimelineMediaItem }) {
   );
 }
 
+import { useHistoryStore } from '../editor/history';
+
 export function MediaLibrary({
   assets,
   items,
@@ -153,6 +155,7 @@ export function MediaLibrary({
   }, [open, assets.length]);
 
   const addPlacement = (asset: TimelineAssetSource) => {
+    useHistoryStore.getState().record('Add media placement');
     const start = Math.max(
       0,
       Math.min(currentTimeMs, timelineDurationMs - MIN_ITEM_MS),
@@ -274,9 +277,10 @@ export function MediaTimelineLane({
     pointerTarget.setPointerCapture(event.pointerId);
     onDragStateChange(timelineDurationMs);
     const itemSelection = { kind: 'media' as const, id: initial.id };
-    const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
+    const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((s) => selectionKey(s) === selectionKey(itemSelection));
     if (event.shiftKey) selectItem(itemSelection, true);
     else if (!alreadySelected) selectItem(itemSelection, false);
+    useHistoryStore.getState().beginTransaction(interaction === 'item' ? 'Move timeline items' : 'Trim media clip');
     const initialStarts = captureSelectedTimelineStarts();
     const minimumStart = Math.min(...initialStarts.values());
 
@@ -332,6 +336,7 @@ export function MediaTimelineLane({
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', stop, { once: true });

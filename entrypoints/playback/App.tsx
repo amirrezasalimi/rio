@@ -5,10 +5,12 @@ import { LogoMark } from '../shared/components/LogoMark';
 import { formatDuration } from '../shared/recording/media'; import { deleteEditorAsset, deleteRecordingProject, getEditorAssets, getEditorProject, getRecording, getRecordings, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
 import { EditorSidebar } from './components/EditorSidebar'; import { ExportMenu } from './components/ExportMenu'; import { ExportSettingsMenu } from './components/ExportSettingsMenu';
 import { FileMenu } from './components/FileMenu';
+import { HistoryMenu } from './components/HistoryMenu';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { Timeline } from './components/Timeline';
 import { copySelectedTimelineItem, deleteSelectedTimelineItem, deleteSelectedZoomPoint, duplicateSelectedTimelineItem, pasteTimelineItem } from './editor/clipActions';
 import { downloadRecordingClip } from './editor/clipDownload'; import { exportRecording } from './editor/export'; import { readGestureMetadata } from './editor/gestureMetadata';
+import { useHistoryStore } from './editor/history';
 import { createTimelineMediaPlacement } from './editor/mediaPlacement';
 import { exportProjectArchive, importProjectArchive } from './editor/projectArchive';
 import { useEditorStore } from './editor/store'; import { createDefaultGestureSettings, createDefaultMeshPoints, DEFAULT_EXPORT_SETTINGS, EXPORT_FPS_OPTIONS, EXPORT_QUALITY_OPTIONS, getEditedDurationMs, FPS, type EditorClip, type EditorSettings, type ExportFormat, type ExportSettings, type TimelineAssetSource, type TimelineMediaType } from './editor/types';
@@ -254,6 +256,7 @@ function App() {
 
   useEffect(() => {
     if (!recording || !projectReady) return;
+    useHistoryStore.getState().clear();
     const flush = () => void saveEditorProject(recording.id, getSerializableProject());
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') flush();
@@ -288,7 +291,14 @@ function App() {
       const target = event.target as HTMLElement | null;
       if (target?.matches('input, textarea, select, [contenteditable="true"]')) return;
       const modifier = event.ctrlKey || event.metaKey;
-      if (modifier && event.key.toLowerCase() === 'c') {
+      if (modifier && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) useHistoryStore.getState().redo();
+        else useHistoryStore.getState().undo();
+      } else if (modifier && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        useHistoryStore.getState().redo();
+      } else if (modifier && event.key.toLowerCase() === 'c') {
         if (copySelectedTimelineItem()) event.preventDefault();
       } else if (modifier && event.key.toLowerCase() === 'v') {
         if (pasteTimelineItem()) event.preventDefault();
@@ -493,6 +503,7 @@ function App() {
         <div className="flex items-center gap-3">
           <LogoMark />
           <FileMenu currentId={recording?.id} busy={projectFileBusy} onImport={importProject} onExport={exportProject} onDelete={deleteCurrentProject} onError={setError} />
+          <HistoryMenu />
           <span className="hidden h-5 w-px bg-border sm:block" />
           <div className="hidden sm:block"><p className="text-xs font-semibold">Recording complete</p><p className="text-[10px] text-muted">{recording ? formatDuration(recording.durationMs) : 'Loading…'}</p></div>
         </div>

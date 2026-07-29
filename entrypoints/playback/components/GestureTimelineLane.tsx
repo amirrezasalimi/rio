@@ -20,6 +20,8 @@ function formatTime(milliseconds: number) {
   return `${minutes}:${(totalSeconds % 60).toFixed(1).padStart(4, '0')}`;
 }
 
+import { useHistoryStore } from '../editor/history';
+
 export function GestureTimelineLane({ editedRecordingDurationMs, timelineDurationMs, onDragStateChange }: { editedRecordingDurationMs: number; timelineDurationMs: number; onDragStateChange: (lockedDurationMs: number | undefined) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const clips = useEditorStore((state) => state.gestureClips);
@@ -47,6 +49,7 @@ export function GestureTimelineLane({ editedRecordingDurationMs, timelineDuratio
     const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
     if (event.shiftKey) selectItem(itemSelection, true);
     else if (!alreadySelected) selectItem(itemSelection, false);
+    useHistoryStore.getState().beginTransaction(interaction === 'clip' ? 'Move timeline items' : 'Trim gesture clip');
     const initialStarts = captureSelectedTimelineStarts();
     const minimumStart = Math.min(...initialStarts.values());
 
@@ -72,6 +75,7 @@ export function GestureTimelineLane({ editedRecordingDurationMs, timelineDuratio
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });

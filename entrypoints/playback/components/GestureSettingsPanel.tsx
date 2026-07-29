@@ -27,16 +27,18 @@ function MiniSwitch({ checked, label, onChange }: { checked: boolean; label: str
   );
 }
 
-function ColorControl({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function ColorControl({ label, value, onChange, onBlur }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void }) {
   return (
     <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[9px] font-semibold text-muted">
       {label}
       <span className="relative size-7 overflow-hidden rounded-lg border border-border shadow-sm" style={{ background: value }}>
-        <input aria-label={`${label} color`} type="color" value={value} onChange={(event) => onChange(event.currentTarget.value)} className="absolute -inset-2 size-12 cursor-pointer opacity-0" />
+        <input aria-label={`${label} color`} type="color" value={value} onChange={(event) => onChange(event.currentTarget.value)} onBlur={onBlur} className="absolute -inset-2 size-12 cursor-pointer opacity-0" />
       </span>
     </label>
   );
 }
+
+import { useHistoryStore } from '../editor/history';
 
 export function GestureSettingsPanel() {
   const selectedId = useEditorStore((state) => state.selectedTimelineItem?.kind === 'gesture' ? state.selectedTimelineItem.id : undefined);
@@ -47,8 +49,9 @@ export function GestureSettingsPanel() {
   if (!clip) return null;
 
   const update = (patch: Partial<GestureSettings>) => updateGestureSettings(clip.id, patch);
-  const setAction = (action: GestureAction, enabled: boolean) => update({ enabled: { ...clip.settings.enabled, [action]: enabled } });
+  const setAction = (action: GestureAction, enabled: boolean) => { useHistoryStore.getState().record(`Toggle ${action} gesture`); update({ enabled: { ...clip.settings.enabled, [action]: enabled } }); };
   const setSource = (sourceId: string) => {
+    useHistoryStore.getState().record('Change gesture source');
     const source = sources.find((item) => item.id === sourceId);
     if (!source) return;
     updateGestureClip(clip.id, { sourceAssetId: sourceId === 'current' ? undefined : sourceId, sourceStartMs: 0, sourceEndMs: source.durationMs });
@@ -77,7 +80,7 @@ export function GestureSettingsPanel() {
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-ink"><WandSparkles className="size-3.5 text-primary-600" /> Animation</div>
         <div className="grid grid-cols-3 gap-1.5">
           {ANIMATIONS.map((animation) => (
-            <button key={animation.value} type="button" onClick={() => update({ animation: animation.value })} className={`rounded-xl border px-2 py-2.5 text-[9px] font-semibold transition ${clip.settings.animation === animation.value ? 'border-primary-400 bg-primary-50 text-primary-800' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>
+            <button key={animation.value} type="button" onClick={() => { useHistoryStore.getState().record('Change gesture animation'); update({ animation: animation.value }); }} className={`rounded-xl border px-2 py-2.5 text-[9px] font-semibold transition ${clip.settings.animation === animation.value ? 'border-primary-400 bg-primary-50 text-primary-800' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>
               <span className={`mx-auto mb-1.5 block rounded-full bg-primary-400 ${animation.value === 'pulse' ? 'size-3 shadow-[0_0_0_5px_rgba(50,143,223,.16)]' : animation.value === 'ripple' ? 'size-5 border-2 border-primary-500 bg-transparent' : 'size-4 rotate-45 rounded-sm'}`} />
               {animation.label}
             </button>
@@ -91,10 +94,10 @@ export function GestureSettingsPanel() {
       <section className="border-b border-border px-4 py-4">
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-ink"><Palette className="size-3.5 text-primary-600" /> Colors</div>
         <div className="grid grid-cols-2 gap-1.5">
-          <ColorControl label="Cursor" value={clip.settings.cursorColor} onChange={(cursorColor) => update({ cursorColor })} />
-          <ColorControl label="Click" value={clip.settings.clickColor} onChange={(clickColor) => update({ clickColor })} />
-          <ColorControl label="Drag" value={clip.settings.dragColor} onChange={(dragColor) => update({ dragColor })} />
-          <ColorControl label="Scroll" value={clip.settings.scrollColor} onChange={(scrollColor) => update({ scrollColor })} />
+          <ColorControl label="Cursor" value={clip.settings.cursorColor} onChange={(cursorColor) => update({ cursorColor })} onBlur={() => useHistoryStore.getState().record('Change cursor color')} />
+          <ColorControl label="Click" value={clip.settings.clickColor} onChange={(clickColor) => update({ clickColor })} onBlur={() => useHistoryStore.getState().record('Change click color')} />
+          <ColorControl label="Drag" value={clip.settings.dragColor} onChange={(dragColor) => update({ dragColor })} onBlur={() => useHistoryStore.getState().record('Change drag color')} />
+          <ColorControl label="Scroll" value={clip.settings.scrollColor} onChange={(scrollColor) => update({ scrollColor })} onBlur={() => useHistoryStore.getState().record('Change scroll color')} />
         </div>
       </section>
 

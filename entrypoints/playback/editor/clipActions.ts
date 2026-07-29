@@ -1,4 +1,5 @@
 import { useEditorStore } from './store';
+import { useHistoryStore } from './history';
 import type { EditorClip, GestureClip, TextClip, TimelineMediaItem, TimelineSelection, ZoomClip } from './types';
 import { getClipDurationMs, getGestureClipDurationMs, getTimelineItemDurationMs } from './types';
 
@@ -44,6 +45,7 @@ function duration(item: ClipboardItem): number {
 }
 
 function insert(item: ClipboardItem): TimelineSelection {
+  useHistoryStore.getState().beginTransaction('Paste item');
   const state = useEditorStore.getState();
   const copy = { ...clone(item.item), id: crypto.randomUUID(), timelineStartMs: item.item.timelineStartMs + duration(item) };
   if (item.kind === 'recording') state.setClips((current) => [...current, copy as EditorClip]);
@@ -53,6 +55,7 @@ function insert(item: ClipboardItem): TimelineSelection {
   else state.setZoomClips((current) => [...current, copy as ZoomClip]);
   const selection = { kind: item.kind, id: copy.id } as TimelineSelection;
   state.setSelectedTimelineItem(selection);
+  useHistoryStore.getState().commitTransaction();
   return selection;
 }
 
@@ -74,7 +77,9 @@ export function pasteTimelineItem(): boolean {
 export function duplicateSelectedTimelineItem(): boolean {
   const item = selectedItem();
   if (!item) return false;
+  useHistoryStore.getState().beginTransaction('Duplicate item');
   insert(item);
+  useHistoryStore.getState().commitTransaction();
   return true;
 }
 
@@ -84,6 +89,7 @@ export function deleteSelectedZoomPoint(): boolean {
   if (selection?.kind !== 'zoom') return false;
   const clip = state.zoomClips.find((item) => item.id === selection.id);
   if (!clip?.selectedPointId || !clip.points.some((point) => point.id === clip.selectedPointId)) return false;
+  useHistoryStore.getState().record('Delete zoom point');
   state.updateZoomClip(clip.id, {
     points: clip.points.filter((point) => point.id !== clip.selectedPointId),
     selectedPointId: undefined,
@@ -95,6 +101,7 @@ export function deleteSelectedTimelineItem(): boolean {
   const state = useEditorStore.getState();
   const selection = state.selectedTimelineItem;
   if (!selection) return false;
+  useHistoryStore.getState().record('Delete item');
   if (selection.kind === 'recording') state.setClips((current) => current.filter((item) => item.id !== selection.id));
   else if (selection.kind === 'media') state.setTimelineMedia((current) => current.filter((item) => item.id !== selection.id));
   else if (selection.kind === 'gesture') state.setGestureClips((current) => current.filter((item) => item.id !== selection.id));

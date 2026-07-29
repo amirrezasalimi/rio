@@ -52,6 +52,8 @@ function timeLabel(milliseconds: number): string {
 function snap(value: number): number {
   return Math.round(value / SNAP_MS) * SNAP_MS;
 }
+import { useHistoryStore } from '../editor/history';
+
 export function Timeline({
   currentTimeMs,
   sourceDurationMs,
@@ -127,21 +129,25 @@ export function Timeline({
     setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)));
 
   const addOriginal = () => {
+    useHistoryStore.getState().record('Add recording clip');
     const clip: EditorClip = { id: crypto.randomUUID(), sourceStartMs: 0, sourceEndMs: Math.max(sourceDurationMs, MIN_CLIP_MS), timelineStartMs: currentTimeMs };
     setClips((current) => [...current, clip]);
     setSelection({ kind: 'recording', id: clip.id });
   };
   const addText = () => {
+    useHistoryStore.getState().record('Add text clip');
     const clip = createDefaultTextClip(currentTimeMs);
     setTextClips((current) => [...current, clip]);
     setSelection({ kind: 'text', id: clip.id });
   };
   const addZoom = () => {
+    useHistoryStore.getState().record('Add zoom clip');
     const clip = createDefaultZoomClip(currentTimeMs, Math.max(1_000, Math.min(5_000, projectDurationMs - currentTimeMs)));
     setZoomClips((current) => [...current, clip]);
     setSelection({ kind: 'zoom', id: clip.id });
   };
   const addGesture = () => {
+    useHistoryStore.getState().record('Add gesture clip');
     const fallbackSource = interactionCount === 0 ? assets.find((asset) => asset.type === 'video' && asset.interactions?.length) : undefined;
     const sourceDurationMs = fallbackSource?.gestureDurationMs ?? editedRecordingDurationMs;
     if (sourceDurationMs < MIN_CLIP_MS) return;
@@ -151,6 +157,7 @@ export function Timeline({
   };
 
   const resetCuts = () => {
+    useHistoryStore.getState().record('Reset cuts');
     const restored = {
       id: crypto.randomUUID(),
       sourceStartMs: 0,
@@ -192,6 +199,7 @@ export function Timeline({
               sourceTimeMs - clip.sourceStartMs >= minimumSourceDurationMs &&
               clip.sourceEndMs - sourceTimeMs >= minimumSourceDurationMs
             ) {
+              useHistoryStore.getState().record('Split clip');
               const first = {
                 ...clip,
                 id: crypto.randomUUID(),
@@ -227,6 +235,7 @@ export function Timeline({
               sourceTimeMs - item.sourceStartMs >= minimumSourceDurationMs &&
               item.sourceEndMs - sourceTimeMs >= minimumSourceDurationMs
             ) {
+              useHistoryStore.getState().record('Split media placement');
               const firstId = crypto.randomUUID();
               const secondId = crypto.randomUUID();
               const first: TimelineMediaItem = {
@@ -333,6 +342,7 @@ export function Timeline({
       clip.sourceEndMs - located.sourceTimeMs < minimumSourceDurationMs
     ) return;
 
+    useHistoryStore.getState().record('Split recording clip');
     const first = {
       ...clip,
       id: crypto.randomUUID(),
@@ -369,6 +379,7 @@ export function Timeline({
     const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
     if (event.shiftKey) selectItem(itemSelection, true);
     else if (!alreadySelected) selectItem(itemSelection, false);
+    useHistoryStore.getState().beginTransaction(interaction === 'clip' ? 'Move timeline items' : 'Trim recording clip');
     const initialStarts = captureSelectedTimelineStarts();
     const minimumStart = Math.min(...initialStarts.values());
     const startX = event.clientX;
@@ -417,6 +428,7 @@ export function Timeline({
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });

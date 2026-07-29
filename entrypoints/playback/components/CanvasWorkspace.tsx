@@ -14,6 +14,8 @@ interface CanvasWorkspaceProps {
   onDropMedia: (files: FileList, position: { x: number; y: number }) => void;
 }
 
+import { useHistoryStore } from '../editor/history';
+
 export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMediaChange, onDropMedia }: CanvasWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -83,14 +85,16 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   };
 
   const moveMedia = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!movingMedia || !canvasRef.current) return;
+    if (!selectedTransform || !canvasRef.current) return;
+    event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().beginTransaction('Move media');
     const bounds = canvasRef.current.getBoundingClientRect();
-    const state = useEditorStore.getState();
-    const start = selectedUpload ?? (selectedRecording ? getClipMediaTransform(selectedRecording, state.media) : state.media);
+    const start = { ...selectedTransform };
     const startX = event.clientX;
     const startY = event.clientY;
     const update = (moveEvent: PointerEvent) => {
+      const state = useEditorStore.getState();
       const patch = {
         positionX: Math.max(0, Math.min(100, start.positionX + (moveEvent.clientX - startX) / bounds.width * 100)),
         positionY: Math.max(0, Math.min(100, start.positionY + (moveEvent.clientY - startY) / bounds.height * 100)),
@@ -102,6 +106,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     const stop = () => {
       window.removeEventListener('pointermove', update);
       window.removeEventListener('pointerup', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', update);
     window.addEventListener('pointerup', stop, { once: true });
@@ -111,6 +116,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     if (!selectedText || !canvasRef.current) return;
     event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().beginTransaction('Move text');
     const bounds = canvasRef.current.getBoundingClientRect();
     const startX = event.clientX;
     const startY = event.clientY;
@@ -123,6 +129,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     const stop = () => {
       window.removeEventListener('pointermove', update);
       window.removeEventListener('pointerup', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', update);
     window.addEventListener('pointerup', stop, { once: true });
@@ -132,6 +139,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     if (!selectedZoom || !selectedZoomPoint || !canvasRef.current) return;
     event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().beginTransaction('Move zoom focus');
     const bounds = canvasRef.current.getBoundingClientRect();
     const update = (clientX: number, clientY: number) => useEditorStore.getState().updateZoomPoint(selectedZoom.id, selectedZoomPoint.id, {
       positionX: Math.max(0, Math.min(100, (clientX - bounds.left) / bounds.width * 100)),
@@ -139,7 +147,11 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     });
     update(event.clientX, event.clientY);
     const move = (moveEvent: PointerEvent) => update(moveEvent.clientX, moveEvent.clientY);
-    const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+    const stop = () => { 
+      window.removeEventListener('pointermove', move); 
+      window.removeEventListener('pointerup', stop); 
+      useHistoryStore.getState().commitTransaction();
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });
   };
@@ -148,6 +160,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     if (!selectedZoom || !selectedZoomPoint) return;
     event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().record('Change zoom level');
     const zoom = Math.max(1, Math.min(5, selectedZoomPoint.zoom - event.deltaY * 0.003));
     useEditorStore.getState().updateZoomPoint(selectedZoom.id, selectedZoomPoint.id, { zoom: Math.round(zoom * 10) / 10 });
   };
@@ -156,6 +169,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     if (!selectedText || !canvasRef.current) return;
     event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().beginTransaction('Rotate text');
     const bounds = canvasRef.current.getBoundingClientRect();
     const centerX = bounds.left + bounds.width * selectedText.positionX / 100;
     const centerY = bounds.top + bounds.height * selectedText.positionY / 100;
@@ -167,6 +181,7 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     const stop = () => {
       window.removeEventListener('pointermove', update);
       window.removeEventListener('pointerup', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', update);
     window.addEventListener('pointerup', stop, { once: true });

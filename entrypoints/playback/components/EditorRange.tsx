@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 
+import { useHistoryStore } from '../editor/history';
+
 interface EditorRangeProps {
   label: string;
   value: number;
@@ -9,6 +11,8 @@ interface EditorRangeProps {
   suffix?: string;
   className?: string;
   onChange: (value: number) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }
 
 export function EditorRange({
@@ -20,6 +24,8 @@ export function EditorRange({
   suffix = '',
   className = '',
   onChange,
+  onInteractionStart,
+  onInteractionEnd,
 }: EditorRangeProps) {
   const progress = Math.max(
     0,
@@ -43,6 +49,19 @@ export function EditorRange({
         step={step}
         value={value}
         style={{ '--rio-range-progress': `${progress}%` } as CSSProperties}
+        onPointerDown={() => {
+          if (onInteractionStart) onInteractionStart();
+          else useHistoryStore.getState().beginTransaction(`Change ${label.toLowerCase()}`);
+        }}
+        onPointerUp={() => {
+          if (onInteractionEnd) onInteractionEnd();
+          else useHistoryStore.getState().commitTransaction();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            useHistoryStore.getState().record(`Change ${label.toLowerCase()}`);
+          }
+        }}
         onChange={(event) => onChange(event.currentTarget.valueAsNumber)}
       />
     </label>

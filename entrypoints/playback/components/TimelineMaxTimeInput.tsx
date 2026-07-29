@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { useHistoryStore } from '../editor/history';
+
 export function TimelineMaxTimeInput({ valueSeconds, minimumSeconds, onCommit }: { valueSeconds: number; minimumSeconds: number; onCommit: (seconds: number) => void }) {
   const [draft, setDraft] = useState(String(valueSeconds));
   const focused = useRef(false);
@@ -13,6 +15,9 @@ export function TimelineMaxTimeInput({ valueSeconds, minimumSeconds, onCommit }:
     const parsed = Number(draft);
     const next = Number.isFinite(parsed) ? Math.max(minimumSeconds, Math.round(parsed)) : valueSeconds;
     setDraft(String(next));
+    if (next !== valueSeconds) {
+      useHistoryStore.getState().record('Change timeline duration');
+    }
     onCommit(next);
   };
 

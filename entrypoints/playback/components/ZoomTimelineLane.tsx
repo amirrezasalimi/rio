@@ -9,6 +9,8 @@ const MIN_CLIP_MS = 150;
 const SNAP_MS = 50;
 const snap = (value: number) => Math.round(value / SNAP_MS) * SNAP_MS;
 
+import { useHistoryStore } from '../editor/history';
+
 export function ZoomTimelineLane({ timelineDurationMs, onDragStateChange }: { timelineDurationMs: number; onDragStateChange: (duration: number | undefined) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const clips = useEditorStore((state) => state.zoomClips);
@@ -30,6 +32,7 @@ export function ZoomTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
     if (event.shiftKey) selectItem(selection, true);
     else if (!alreadySelected) selectItem(selection, false);
     setClips((current) => current.map((clip) => clip.id === initial.id ? { ...clip, selectedPointId: undefined } : clip));
+    useHistoryStore.getState().beginTransaction(interaction === 'clip' ? 'Move timeline items' : 'Trim zoom clip');
     const initialStarts = captureSelectedTimelineStarts();
     const minimumStart = Math.min(...initialStarts.values());
     onDragStateChange(timelineDurationMs);
@@ -46,7 +49,12 @@ export function ZoomTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
         return { ...clip, durationMs, points: clip.points.map((point) => ({ ...point, timeMs: Math.min(point.timeMs, durationMs) })) };
       }));
     };
-    const stop = () => { onDragStateChange(undefined); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+    const stop = () => { 
+      onDragStateChange(undefined); 
+      window.removeEventListener('pointermove', move); 
+      window.removeEventListener('pointerup', stop); 
+      useHistoryStore.getState().commitTransaction();
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });
   };
@@ -55,6 +63,7 @@ export function ZoomTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
     if ((event.target as HTMLElement).closest('button')) return;
     event.preventDefault();
     event.stopPropagation();
+    useHistoryStore.getState().record('Add zoom point');
     const bounds = event.currentTarget.getBoundingClientRect();
     const clip = clips.find((item) => item.id === clipId);
     if (!clip) return;
@@ -72,8 +81,13 @@ export function ZoomTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
     if (!clip || !point || !bounds) return;
     setClips((current) => current.map((item) => item.id === clipId ? { ...item, selectedPointId: pointId } : item));
     setSelection({ kind: 'zoom', id: clipId });
+    useHistoryStore.getState().beginTransaction('Move zoom point');
     const update = (moveEvent: PointerEvent) => setClips((current) => current.map((item) => item.id === clipId ? { ...item, points: item.points.map((candidate) => candidate.id === pointId ? { ...candidate, timeMs: snap(Math.max(0, Math.min(item.durationMs, (moveEvent.clientX - bounds.left) / bounds.width * item.durationMs))) } : candidate).sort((a, b) => a.timeMs - b.timeMs) } : item));
-    const stop = () => { window.removeEventListener('pointermove', update); window.removeEventListener('pointerup', stop); };
+    const stop = () => { 
+      window.removeEventListener('pointermove', update); 
+      window.removeEventListener('pointerup', stop); 
+      useHistoryStore.getState().commitTransaction();
+    };
     window.addEventListener('pointermove', update);
     window.addEventListener('pointerup', stop, { once: true });
   };

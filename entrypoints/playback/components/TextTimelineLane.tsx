@@ -10,7 +10,9 @@ const MIN_CLIP_MS = 150;
 const SNAP_MS = 50;
 const snap = (value: number) => Math.round(value / SNAP_MS) * SNAP_MS;
 
-export function TextTimelineLane({ timelineDurationMs, onDragStateChange }: { timelineDurationMs: number; onDragStateChange: (lockedDurationMs: number | undefined) => void }) {
+import { useHistoryStore } from '../editor/history';
+
+export function TextTimelineLane({ timelineDurationMs, onDragStateChange }: { timelineDurationMs: number; onDragStateChange: (duration: number | undefined) => void }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const clips = useEditorStore((state) => state.textClips);
   const setClips = useEditorStore((state) => state.setTextClips);
@@ -36,6 +38,7 @@ export function TextTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
     const alreadySelected = useEditorStore.getState().selectedTimelineItems.some((item) => selectionKey(item) === selectionKey(itemSelection));
     if (event.shiftKey) selectItem(itemSelection, true);
     else if (!alreadySelected) selectItem(itemSelection, false);
+    useHistoryStore.getState().beginTransaction(interaction === 'clip' ? 'Move timeline items' : 'Trim text clip');
     const initialStarts = captureSelectedTimelineStarts();
     const minimumStart = Math.min(...initialStarts.values());
 
@@ -60,6 +63,7 @@ export function TextTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', stop);
       window.removeEventListener('pointercancel', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', stop, { once: true });

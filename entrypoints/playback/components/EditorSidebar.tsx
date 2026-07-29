@@ -49,6 +49,7 @@ function framePreview(style: FrameStyle): React.CSSProperties {
 
 function LightBox({ x, y, onChange }: { x: number; y: number; onChange: (x: number, y: number) => void }) {
   const move = (event: React.PointerEvent<HTMLDivElement>) => {
+    useHistoryStore.getState().beginTransaction('Move shadow light');
     const bounds = event.currentTarget.getBoundingClientRect();
     const update = (clientX: number, clientY: number) => onChange(
       Math.max(0, Math.min(100, (clientX - bounds.left) / bounds.width * 100)),
@@ -59,6 +60,7 @@ function LightBox({ x, y, onChange }: { x: number; y: number; onChange: (x: numb
     const stop = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', stop);
+      useHistoryStore.getState().commitTransaction();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', stop, { once: true });
@@ -76,6 +78,8 @@ function LightBox({ x, y, onChange }: { x: number; y: number; onChange: (x: numb
     </div>
   );
 }
+
+import { useHistoryStore } from '../editor/history';
 
 export function EditorSidebar() {
   const store = useEditorStore();
@@ -142,7 +146,7 @@ export function EditorSidebar() {
       {selectedZoom && <ZoomSettingsPanel />}
 
       {speedItem && <Section icon={Gauge} title="Playback speed">
-        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => updatePlaybackRate(rate)} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
+        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => { useHistoryStore.getState().record('Change playback speed'); updatePlaybackRate(rate); }} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
         <EditorRange className="mt-3" label="Custom speed" value={playbackRate} min={0.25} max={4} step={0.05} suffix="×" onChange={updatePlaybackRate} />
         <p className="mt-2 text-[8px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
       </Section>}
@@ -150,7 +154,7 @@ export function EditorSidebar() {
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Frame} title="Media frame">
         <div className="grid grid-cols-2 gap-1.5">
           {FRAME_STYLES.map((style) => (
-            <button key={style.value} type="button" onClick={() => updateVisual({ frameStyle: style.value })} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}>
+            <button key={style.value} type="button" onClick={() => { useHistoryStore.getState().record('Change frame style'); updateVisual({ frameStyle: style.value }); }} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}>
               <span className="relative block h-10 rounded-lg bg-[linear-gradient(135deg,var(--color-cream-200),var(--color-primary-200))]"><span className="absolute inset-2 rounded-md" style={framePreview(style.value)} /></span>
               <span className="mt-1 flex items-center justify-between px-0.5 text-[9px] font-semibold text-muted">{style.label}{visual.frameStyle === style.value && <Check className="size-3 text-primary-600" />}</span>
             </button>
@@ -161,7 +165,7 @@ export function EditorSidebar() {
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Shapes} title="Border shape">
         <div className="grid grid-cols-3 gap-1.5">
           {shapes.map((shape) => (
-            <button key={shape} type="button" onClick={() => updateVisual({ borderShape: shape })} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
+            <button key={shape} type="button" onClick={() => { useHistoryStore.getState().record('Change border shape'); updateVisual({ borderShape: shape }); }} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
               <span className="mx-auto block h-9 w-12 bg-primary-300" style={{ borderRadius: shape === 'sharp' ? 0 : shape === 'rounded' ? 10 : '42% 42% 36% 36% / 52% 52% 34% 34%' }} />
               <span className="mt-1 block text-[9px] font-semibold capitalize text-muted">{shape}</span>
             </button>
@@ -171,10 +175,10 @@ export function EditorSidebar() {
         {visual.borderShape === 'curved' && <EditorRange className="mt-3" label="Curve" value={visual.cornerSmoothing} min={0} max={1} step={0.01} onChange={(cornerSmoothing) => updateVisual({ cornerSmoothing })} />}
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
           <EditorRange label="Stroke" value={visual.borderWidth} min={0} max={16} suffix="px" onChange={(borderWidth) => updateVisual({ borderWidth })} />
-          <label className="block text-[10px] text-muted">Color<input aria-label="Border color" type="color" value={visual.borderColor} onChange={(event) => updateVisual({ borderColor: event.target.value })} className="mt-1 block size-8 cursor-pointer rounded-lg border-0 bg-transparent" /></label>
+          <label className="block text-[10px] text-muted">Color<input aria-label="Border color" type="color" value={visual.borderColor} onChange={(event) => updateVisual({ borderColor: event.target.value })} onBlur={() => useHistoryStore.getState().record('Change border color')} className="mt-1 block size-8 cursor-pointer rounded-lg border-0 bg-transparent" /></label>
         </div>
         <EditorRange className="mt-3" label="Border opacity" value={visual.borderOpacity} min={0} max={100} suffix="%" onChange={(borderOpacity) => updateVisual({ borderOpacity })} />
-        <div className="mt-2 flex gap-1.5">{['#ffffff', '#328fdf', '#ed674e', '#18324a'].map((color) => <button key={color} type="button" aria-label={`Border color ${color}`} onClick={() => updateVisual({ borderColor: color })} className="size-6 rounded-full border-2 border-white shadow-sm" style={{ background: color }} />)}</div>
+        <div className="mt-2 flex gap-1.5">{['#ffffff', '#328fdf', '#ed674e', '#18324a'].map((color) => <button key={color} type="button" aria-label={`Border color ${color}`} onClick={() => { useHistoryStore.getState().record('Change border color'); updateVisual({ borderColor: color }); }} className="size-6 rounded-full border-2 border-white shadow-sm" style={{ background: color }} />)}</div>
       </Section>}
 
       {!hasSelection && <Section icon={Palette} title="Background"><BackgroundPanel /></Section>}
@@ -184,7 +188,7 @@ export function EditorSidebar() {
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Sparkles} title="Shadow">
         <div className="grid grid-cols-4 gap-1.5">
           {shadows.map((shadow) => (
-            <button key={shadow} type="button" onClick={() => updateVisual({ shadowStyle: shadow })} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
+            <button key={shadow} type="button" onClick={() => { useHistoryStore.getState().record('Change shadow style'); updateVisual({ shadowStyle: shadow }); }} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
               <span className="mx-auto block size-7 rounded-lg bg-surface" style={{ boxShadow: shadow === 'none' ? 'none' : shadow === 'spread' ? '0 5px 8px 3px rgba(24,50,74,.2)' : shadow === 'huge' ? '0 8px 14px rgba(24,50,74,.32)' : '5px 6px 10px rgba(50,143,223,.35)' }} />
               <span className="mt-1.5 block truncate text-[8px] font-semibold capitalize text-muted">{shadow}</span>
             </button>
