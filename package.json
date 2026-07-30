@@ -2,7 +2,7 @@
   "name": "rio-recorder",
   "description": "Local-first Chromium screen recorder and browser-based video editor.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",

@@ -1,5 +1,4 @@
 import type {
-  CaptureMode,
   CropArea,
   RecorderRuntimeMessage,
   RecordingOptions,
@@ -17,8 +16,13 @@ interface RecorderReadyMessage {
   sessionId: string;
 }
 
-type DesktopSource = 'screen' | 'window' | 'tab' | 'audio';
-type CaptureRequest = StartCaptureMessage | RecorderReadyMessage | RecorderRuntimeMessage;
+interface DesktopCaptureResultMessage {
+  type: 'desktop-capture-result';
+  sessionId: string;
+  approved: boolean;
+}
+
+type CaptureRequest = StartCaptureMessage | RecorderReadyMessage | DesktopCaptureResultMessage | RecorderRuntimeMessage;
 
 interface StartCaptureResponse {
   ok: boolean;
@@ -34,17 +38,6 @@ interface PendingCapture {
 
 const pendingCaptures = new Map<string, PendingCapture>();
 const activeCaptures = new Map<string, PendingCapture>();
-
-function getDesktopSources(options: RecordingOptions): DesktopSource[] {
-  const preferredSource: Record<Exclude<CaptureMode, 'region'>, DesktopSource> = {
-    browser: 'tab',
-    window: 'window',
-    monitor: 'screen',
-  };
-  const sources: DesktopSource[] = [preferredSource[options.mode as Exclude<CaptureMode, 'region'>]];
-  if (options.sourceAudio) sources.push('audio');
-  return sources;
-}
 
 async function createRecorderHostTab(sessionId: string, pending: PendingCapture) {
   const query = new URLSearchParams({
@@ -120,7 +113,7 @@ async function refocusCapturedPage(pending: PendingCapture) {
 }
 
 export default defineBackground(() => {
-  browser.runtime.onMessage.addListener(async (message: unknown) => {
+  browser.runtime.onMessage.addListener(async (message: unknown, sender) => {
     const request = message as CaptureRequest;
 
     if (request.type === 'recorder-command') return;
@@ -171,9 +164,22 @@ export default defineBackground(() => {
       }
     }
 
+    if (request.type === 'desktop-capture-result') {
+      const active = activeCaptures.get(request.sessionId);
+      if (!active?.recorderTabId || sender.tab?.id !== active.recorderTabId) return;
+      if (!request.approved) {
+        activeCaptures.delete(request.sessionId);
+        await browser.tabs.remove(active.recorderTabId).catch(() => undefined);
+        return;
+      }
+      await showPageControls(request.sessionId, active);
+      await refocusCapturedPage(active);
+      return;
+    }
+
     if (request.type !== 'recorder-ready') return;
     const pending = pendingCaptures.get(request.sessionId);
-    if (!pending?.recorderTabId) return;
+    if (!pending?.recorderTabId || sender.tab?.id !== pending.recorderTabId) return;
     pendingCaptures.delete(request.sessionId);
     activeCaptures.set(request.sessionId, pending);
 
@@ -196,28 +202,6 @@ export default defineBackground(() => {
         activeCaptures.delete(request.sessionId);
         await browser.tabs.remove(pending.recorderTabId).catch(() => undefined);
       }
-      return;
     }
-
-    chrome.desktopCapture.chooseDesktopMedia(
-      getDesktopSources(pending.options),
-      await browser.tabs.get(pending.recorderTabId),
-      async (streamId, pickerOptions) => {
-        if (!streamId) {
-          activeCaptures.delete(request.sessionId);
-          await browser.tabs.remove(pending.recorderTabId!).catch(() => undefined);
-          return;
-        }
-        await browser.runtime.sendMessage({
-          type: 'capture-approved',
-          sessionId: request.sessionId,
-          streamId,
-          source: 'desktop',
-          sourceAudioAllowed: pickerOptions.canRequestAudioTrack,
-        });
-        await showPageControls(request.sessionId, pending);
-        await refocusCapturedPage(pending);
-      },
-    );
   });
 });

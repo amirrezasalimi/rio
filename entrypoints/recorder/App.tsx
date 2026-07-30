@@ -12,7 +12,20 @@ interface CaptureApprovedMessage {
   sessionId: string;
   streamId: string;
   sourceAudioAllowed: boolean;
-  source: 'desktop' | 'tab';
+  source: 'tab';
+}
+
+type DesktopSource = 'screen' | 'window' | 'tab' | 'audio';
+
+function getDesktopSources(options: RecordingOptions): DesktopSource[] {
+  const preferredSource: Record<Exclude<CaptureMode, 'region'>, DesktopSource> = {
+    browser: 'tab',
+    window: 'window',
+    monitor: 'screen',
+  };
+  const sources: DesktopSource[] = [preferredSource[options.mode as Exclude<CaptureMode, 'region'>]];
+  if (options.sourceAudio) sources.push('audio');
+  return sources;
 }
 
 function App() {
@@ -70,7 +83,42 @@ function App() {
     };
 
     browser.runtime.onMessage.addListener(handleMessage);
-    void browser.runtime.sendMessage({ type: 'recorder-ready', sessionId: capture.sessionId });
+
+    const initializeCapture = async () => {
+      await browser.runtime.sendMessage({ type: 'recorder-ready', sessionId: capture.sessionId });
+      if (capture.options.mode === 'region' || startedRef.current) return;
+      startedRef.current = true;
+
+      chrome.desktopCapture.chooseDesktopMedia(
+        getDesktopSources(capture.options),
+        async (streamId, pickerOptions) => {
+          const error = chrome.runtime.lastError;
+          if (error || !streamId) {
+            if (error) console.error('Rio desktop capture picker failed.', error.message);
+            await browser.runtime.sendMessage({
+              type: 'desktop-capture-result',
+              sessionId: capture.sessionId,
+              approved: false,
+            });
+            return;
+          }
+
+          const approved = await startApprovedCapture(
+            streamId,
+            capture.options,
+            pickerOptions.canRequestAudioTrack,
+            'desktop',
+          );
+          await browser.runtime.sendMessage({
+            type: 'desktop-capture-result',
+            sessionId: capture.sessionId,
+            approved,
+          });
+        },
+      );
+    };
+
+    void initializeCapture();
     return () => browser.runtime.onMessage.removeListener(handleMessage);
   }, [capture, pause, recordInteraction, resume, startApprovedCapture, stop]);
 

@@ -403,6 +403,7 @@ export function useScreenRecorder() {
       pendingRef.current = capture;
 
       await beginMediaRecorder(capture, crop, options.mode === 'region', options.mode);
+      return true;
     } catch (error) {
       cleanUp();
       publishState({
@@ -410,6 +411,7 @@ export function useScreenRecorder() {
         elapsedMs: 0,
         error: error instanceof Error ? error.message : 'Could not start capture.',
       });
+      return false;
     }
   }, [beginMediaRecorder, cleanUp, publishState]);
 
