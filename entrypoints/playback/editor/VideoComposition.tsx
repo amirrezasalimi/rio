@@ -190,9 +190,33 @@ function TextClipSequence({ clip, sceneSpeed }: { clip: TextClip; sceneSpeed: nu
   const fillStyle: CSSProperties = clip.fill.type === 'solid'
     ? { color: clip.fill.color }
     : { color: 'transparent', backgroundImage: `linear-gradient(${clip.fill.angle}deg, ${clip.fill.colorA}, ${clip.fill.colorB})`, backgroundClip: 'text', WebkitBackgroundClip: 'text' };
+  
+  const textStyle: CSSProperties = {
+    position: 'absolute',
+    left: `${clip.positionX}%`,
+    top: `${clip.positionY}%`,
+    transform: `translate(-50%, -50%) rotate(${clip.rotation}deg) scale(${clip.scale / 100})`,
+    transformOrigin: 'center',
+    fontFamily: `"${clip.fontFamily}", sans-serif`,
+    fontSize: clip.fontSize,
+    fontWeight: clip.fontWeight,
+    lineHeight: 1.08,
+    whiteSpace: 'pre-wrap',
+    textAlign: 'center',
+    maxWidth: '90%',
+    overflowWrap: 'anywhere',
+    WebkitTextStroke: clip.strokeWidth > 0 ? `${clip.strokeWidth}px ${clip.strokeColor}` : undefined,
+    paintOrder: 'stroke fill',
+    opacity: clip.opacity !== undefined ? clip.opacity / 100 : 1,
+    backgroundColor: clip.backgroundOpacity > 0 ? `${clip.backgroundColor}${Math.round(clip.backgroundOpacity / 100 * 255).toString(16).padStart(2, '0')}` : 'transparent',
+    padding: clip.backgroundOpacity > 0 ? '0.2em 0.4em' : 0,
+    borderRadius: clip.backgroundOpacity > 0 ? `${clip.backgroundRadius ?? 8}px` : 0,
+    ...fillStyle
+  };
+
   return (
     <Sequence from={Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed)} durationInFrames={Math.max(1, Math.round(clip.durationMs / 1000 * fps / sceneSpeed))} premountFor={fps}>
-      <div style={{ position: 'absolute', left: `${clip.positionX}%`, top: `${clip.positionY}%`, transform: `translate(-50%, -50%) rotate(${clip.rotation}deg) scale(${clip.scale / 100})`, transformOrigin: 'center', fontFamily: `"${clip.fontFamily}", sans-serif`, fontSize: clip.fontSize, fontWeight: clip.fontWeight, lineHeight: 1.08, whiteSpace: 'pre-wrap', textAlign: 'center', maxWidth: '90%', overflowWrap: 'anywhere', WebkitTextStroke: clip.strokeWidth > 0 ? `${clip.strokeWidth}px ${clip.strokeColor}` : undefined, paintOrder: 'stroke fill', ...fillStyle }}>{clip.text}</div>
+      <div style={textStyle}>{clip.text}</div>
     </Sequence>
   );
 }

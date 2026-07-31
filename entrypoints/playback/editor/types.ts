@@ -108,6 +108,10 @@ export interface TextClip {
   fill: TextFill;
   strokeColor: string;
   strokeWidth: number;
+  opacity: number;
+  backgroundColor: string;
+  backgroundOpacity: number;
+  backgroundRadius: number;
 }
 
 export interface ClipVisualSettings {
@@ -413,6 +417,10 @@ export function createDefaultTextClip(timelineStartMs = 0): TextClip {
     fill: { type: 'solid', color: '#fffdf8' },
     strokeColor: '#18324a',
     strokeWidth: 0,
+    opacity: 100,
+    backgroundColor: '#000000',
+    backgroundOpacity: 0,
+    backgroundRadius: 8,
   };
 }
 

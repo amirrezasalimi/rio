@@ -60,6 +60,15 @@ export function TextSettingsPanel() {
       </div>
 
       <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3"><EditorRange label="Stroke weight" value={clip.strokeWidth} min={0} max={20} suffix="px" onChange={(strokeWidth) => updateTextClip(clip.id, { strokeWidth })} /><label className="text-[10px] text-muted">Stroke<input aria-label="Text stroke color" type="color" value={clip.strokeColor} onChange={(event) => updateTextClip(clip.id, { strokeColor: event.currentTarget.value })} onBlur={() => useHistoryStore.getState().record('Change text stroke color')} className="mt-1 block size-8 cursor-pointer border-0 bg-transparent" /></label></div>
+
+      <div className="mt-4">
+        <EditorRange className="mt-3" label="Opacity" value={clip.opacity} min={0} max={100} suffix="%" onChange={(opacity) => updateTextClip(clip.id, { opacity })} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-[1fr_auto] items-end gap-3"><EditorRange label="Background opacity" value={clip.backgroundOpacity} min={0} max={100} suffix="%" onChange={(backgroundOpacity) => updateTextClip(clip.id, { backgroundOpacity })} /><label className="text-[10px] text-muted">Background<input aria-label="Text background color" type="color" value={clip.backgroundColor} onChange={(event) => updateTextClip(clip.id, { backgroundColor: event.currentTarget.value })} onBlur={() => useHistoryStore.getState().record('Change text background color')} className="mt-1 block size-8 cursor-pointer border-0 bg-transparent" /></label></div>
+      <div className="mt-4">
+        <EditorRange className="mt-3" label="Background radius" value={clip.backgroundRadius ?? 8} min={0} max={100} suffix="px" onChange={(backgroundRadius) => updateTextClip(clip.id, { backgroundRadius })} />
+      </div>
     </section>
   );
 }
