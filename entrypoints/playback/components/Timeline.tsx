@@ -9,11 +9,12 @@ import {
 
 import { useEffect, useRef, useState } from 'react';
 import { formatDuration } from '../../shared/recording/media';
-import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem } from '../editor/clipActions';
+import { deleteSelectedTimelineItem, duplicateSelectedTimelineItem, splitSelectedTimelineItemAudio } from '../editor/clipActions';
 import { useEditorStore } from '../editor/store';
 import { captureSelectedTimelineStarts, moveSelectedTimelineItems, selectionKey } from '../editor/timelineSelection';
 import type { EditorClip, GestureClip, TimelineAssetSource, TimelineMediaItem } from '../editor/types';
 import { createDefaultGestureSettings, createDefaultTextClip, createDefaultZoomClip, getClipDurationMs, getEditedDurationMs, getPlaybackRate, getTimelineItemDurationMs, getGestureClipDurationMs } from '../editor/types';
+import { AudioWaveform } from './AudioWaveform';
 import { ClipContextMenu } from './ClipContextMenu';
 import { GestureTimelineLane } from './GestureTimelineLane';
 import { MediaLibrary, MediaTimelineLane } from './MediaTimelineLane';
@@ -57,6 +58,8 @@ import { useHistoryStore } from '../editor/history';
 export function Timeline({
   currentTimeMs,
   sourceDurationMs,
+  recordingUrl,
+  hasAudio,
   onSeek,
   assets,
   onUploadMedia,
@@ -67,6 +70,8 @@ export function Timeline({
 }: {
   currentTimeMs: number;
   sourceDurationMs: number;
+  recordingUrl?: string;
+  hasAudio: boolean;
   onSeek: (timeMs: number) => void;
   assets: TimelineAssetSource[];
   onUploadMedia: (files: FileList) => void;
@@ -583,6 +588,12 @@ export function Timeline({
             {clips.map((clip, index) => {
               const clipDuration = getClipDurationMs(clip);
               const selected = selectedItems.some((item) => item.kind === 'recording' && item.id === clip.id);
+              const audioDetached = clip.audioDetached || timelineMedia.some((item) =>
+                item.assetId === 'original-recording-audio'
+                && item.sourceStartMs === clip.sourceStartMs
+                && item.sourceEndMs === clip.sourceEndMs
+                && item.timelineStartMs === clip.timelineStartMs
+              );
               return (
                 <div
                   data-clip
@@ -624,10 +635,11 @@ export function Timeline({
                   <span className="pointer-events-none absolute left-6 top-2 rounded bg-ink/72 px-1.5 py-0.5 font-mono text-[8px] text-white">
                     Clip {index + 1}
                   </span>
-                  <span className="pointer-events-none absolute bottom-2 left-6 font-mono text-[8px] font-semibold text-primary-950">
+                  {hasAudio && !audioDetached && <AudioWaveform src={recordingUrl} sourceStartMs={clip.sourceStartMs} sourceEndMs={clip.sourceEndMs} sourceDurationMs={sourceDurationMs} volume={clip.volume} className="left-0 bottom-0 h-5 text-primary-950" />}
+                  <span className="pointer-events-none absolute bottom-1.5 left-6 z-10 rounded bg-primary-50/75 px-1 font-mono text-[8px] font-semibold text-primary-950 backdrop-blur-[1px]">
                     {timeLabel(clipDuration)} · {getPlaybackRate(clip)}×
                   </span>
-                  <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDownload={() => onDownloadClip(clip)} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
+                  <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDownload={() => onDownloadClip(clip)} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} onSplitAudio={hasAudio && !audioDetached ? splitSelectedTimelineItemAudio : undefined} />
                 </div>
               );
             })}
@@ -637,6 +649,9 @@ export function Timeline({
           <GestureTimelineLane editedRecordingDurationMs={editedRecordingDurationMs} timelineDurationMs={timelineDurationMs} onDragStateChange={setLockedDragDurationMs} />
           <MediaTimelineLane
             items={timelineMedia}
+            assets={assets}
+            recordingUrl={recordingUrl}
+            recordingDurationMs={sourceDurationMs}
             timelineDurationMs={timelineDurationMs}
             onItemsChange={setTimelineMedia}
             onDragStateChange={setLockedDragDurationMs}

@@ -515,10 +515,10 @@ function App() {
       {error && <div role="alert" className="flex items-center gap-2 border-b border-accent-200 bg-accent-50 px-4 py-2 text-xs text-danger"><AlertCircle className="size-4" />{error}</div>}
       {notice && <div className="flex items-center gap-2 border-b border-primary-200 bg-primary-50 px-4 py-2 text-xs text-primary-800"><CheckCircle2 className="size-4" />{notice}</div>}
       <div className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)]">
-        <EditorSidebar />
+        <EditorSidebar hasRecordingAudio={Boolean(recording && recording.hasAudio !== false)} />
         <div className="flex min-h-0 flex-col">
           {videoUrl ? <CanvasWorkspace inputProps={inputProps} playerRef={playerRef} movingMedia={movingMedia} onMovingMediaChange={setMovingMedia} onDropMedia={(files, position) => void uploadMedia(files, { timelineStartMs: currentTimeMs, position })} /> : <section className="grid min-h-0 flex-1 place-items-center"><div className="flex items-center gap-2 text-xs text-muted"><LoaderCircle className="size-4 animate-spin" /> Loading recording…</div></section>}
-          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} interactionCount={recording.interactions?.length ?? 0} onDownloadClip={(clip) => void downloadClip(clip)} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDropMedia={(files, timelineStartMs) => void uploadMedia(files, { timelineStartMs })} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
+          {recording && <Timeline currentTimeMs={currentTimeMs} sourceDurationMs={recording.durationMs} recordingUrl={videoUrl} hasAudio={recording.hasAudio !== false} interactionCount={recording.interactions?.length ?? 0} onDownloadClip={(clip) => void downloadClip(clip)} onSeek={seek} assets={assetSources} onUploadMedia={(files) => void uploadMedia(files)} onDropMedia={(files, timelineStartMs) => void uploadMedia(files, { timelineStartMs })} onDeleteAsset={(assetId) => void removeAsset(assetId)} />}
         </div>
       </div>
     </main>

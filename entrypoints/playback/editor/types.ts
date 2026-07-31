@@ -134,6 +134,8 @@ export interface EditorClip {
   sourceEndMs: number;
   timelineStartMs: number;
   playbackRate?: number;
+  volume?: number;
+  audioDetached?: boolean;
   visual?: Partial<ClipVisualSettings>;
   media?: MediaTransform;
 }

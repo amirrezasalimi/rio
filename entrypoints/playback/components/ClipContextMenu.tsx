@@ -1,10 +1,10 @@
-import { Copy, Download, Trash2 } from 'lucide-react';
+import { Copy, Download, Trash2, Unlink } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface MenuPosition { x: number; y: number; }
 
-export function ClipContextMenu({ label, onOpen, onDuplicate, onDelete, onDownload }: { label: string; onOpen: () => void; onDuplicate: () => void; onDelete: () => void; onDownload?: () => void }) {
+export function ClipContextMenu({ label, onOpen, onDuplicate, onDelete, onDownload, onSplitAudio }: { label: string; onOpen: () => void; onDuplicate: () => void; onDelete: () => void; onDownload?: () => void; onSplitAudio?: () => void }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<MenuPosition>();
@@ -48,6 +48,7 @@ export function ClipContextMenu({ label, onOpen, onDuplicate, onDelete, onDownlo
     {position && createPortal(
       <div ref={menuRef} role="menu" aria-label={`${label} actions`} onContextMenu={(event) => event.preventDefault()} className="fixed z-[100] min-w-36 rounded-xl border border-border bg-surface p-1 shadow-xl shadow-ink/15" style={{ left: position.x, top: position.y }}>
         {onDownload && <button type="button" role="menuitem" onClick={() => run(onDownload)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold hover:bg-primary-50"><Download className="size-3.5 text-primary-600" /> Download original quality</button>}
+        {onSplitAudio && <button type="button" role="menuitem" onClick={() => run(onSplitAudio)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold hover:bg-primary-50"><Unlink className="size-3.5 text-primary-600" /> Detach audio</button>}
         <button type="button" role="menuitem" onClick={() => run(onDuplicate)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold hover:bg-primary-50"><Copy className="size-3.5 text-primary-600" /> Duplicate</button>
         <button type="button" role="menuitem" onClick={() => run(onDelete)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[10px] font-semibold text-danger hover:bg-accent-50"><Trash2 className="size-3.5" /> Delete</button>
       </div>,

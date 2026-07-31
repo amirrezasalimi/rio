@@ -287,6 +287,7 @@ export function useScreenRecorder() {
           mimeType: finalType,
           createdAt: Date.now(),
           durationMs,
+          hasAudio: outputStream.getAudioTracks().length > 0,
           captureMode,
           crop,
           interactions: active?.interactions.filter((event) => event.timestampMs <= durationMs) ?? [],

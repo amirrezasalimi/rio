@@ -81,7 +81,7 @@ function LightBox({ x, y, onChange }: { x: number; y: number; onChange: (x: numb
 
 import { useHistoryStore } from '../editor/history';
 
-export function EditorSidebar() {
+export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolean }) {
   const store = useEditorStore();
   const shapes: BorderShape[] = ['curved', 'rounded', 'sharp'];
   const shadows: ShadowStyle[] = ['none', 'spread', 'huge', 'adaptive'];
@@ -182,8 +182,8 @@ export function EditorSidebar() {
       </Section>}
 
       {!hasSelection && <Section icon={Palette} title="Background"><BackgroundPanel /></Section>}
-      {!hasSelection && <Section icon={LayoutTemplate} title="Canvas"><CanvasPanel mode="general" /></Section>}
-      {hasSelection && !selectedGesture && !selectedText && !selectedZoom && <Section icon={LayoutTemplate} title={selectedMedia ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} controls` : 'Recording controls'}><CanvasPanel mode="selection" /></Section>}
+      {!hasSelection && <Section icon={LayoutTemplate} title="Canvas"><CanvasPanel mode="general" hasRecordingAudio={hasRecordingAudio} /></Section>}
+      {hasSelection && !selectedGesture && !selectedText && !selectedZoom && <Section icon={LayoutTemplate} title={selectedMedia ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} controls` : 'Recording controls'}><CanvasPanel mode="selection" hasRecordingAudio={hasRecordingAudio} /></Section>}
 
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Sparkles} title="Shadow">
         <div className="grid grid-cols-4 gap-1.5">

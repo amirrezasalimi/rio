@@ -30,7 +30,7 @@ const SOCIAL_PLATFORMS = [...new Set(SOCIAL_PRESETS.map((preset) => preset.platf
 
 import { useHistoryStore } from '../editor/history';
 
-export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
+export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'selection'; hasRecordingAudio: boolean }) {
   const canvas = useEditorStore((state) => state.canvas);
   const sceneSpeed = useEditorStore((state) => state.sceneSpeed ?? 1);
   const setSceneSpeed = useEditorStore((state) => state.setSceneSpeed);
@@ -46,6 +46,7 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
       ? state.clips.find((clip) => clip.id === state.selectedTimelineItem?.id)
       : undefined,
   );
+  const timelineMedia = useEditorStore((state) => state.timelineMedia);
   const {
     setCanvasRatio,
     setCanvasSize,
@@ -81,6 +82,12 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
   };
 
   const isUploadedMedia = selection?.kind === 'media' && selectedUpload;
+  const selectedRecordingHasAudio = Boolean(selectedRecording && hasRecordingAudio && !selectedRecording.audioDetached && !timelineMedia.some((item) =>
+    item.assetId === 'original-recording-audio'
+    && item.sourceStartMs === selectedRecording.sourceStartMs
+    && item.sourceEndMs === selectedRecording.sourceEndMs
+    && item.timelineStartMs === selectedRecording.timelineStartMs
+  ));
   const transform = isUploadedMedia
     ? selectedUpload
     : selectedRecording
@@ -234,6 +241,10 @@ export function CanvasPanel({ mode }: { mode: 'general' | 'selection' }) {
             <EditorRange label="Vertical" value={transform.positionY} min={0} max={100} suffix="%" onChange={(positionY) => updateTransform({ positionY })} />
           </div>
         </>
+      )}
+
+      {selectedRecordingHasAudio && selectedRecording && (
+        <EditorRange label="Volume" value={selectedRecording.volume ?? 100} min={0} max={100} suffix="%" onChange={(volume) => updateSelectedClip({ volume })} />
       )}
 
       {isUploadedMedia && selectedUpload.type !== 'audio' && (

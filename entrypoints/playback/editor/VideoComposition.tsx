@@ -178,9 +178,10 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const frozenDurationInFrames = Math.max(0, durationInFrames - playableDurationInFrames);
   const from = Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed);
   const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
+  const volume = (clip.volume ?? 100) / 100;
 
   return <>
-    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Sequence>
+    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={volume} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Sequence>
     {frozenDurationInFrames > 0 && <Sequence from={from + playableDurationInFrames} durationInFrames={frozenDurationInFrames} premountFor={fps}><Freeze frame={playableDurationInFrames - 1}>{surface(<Video src={src} trimBefore={trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Freeze></Sequence>}
   </>;
 }
@@ -241,7 +242,17 @@ export function VideoComposition({ src, clips, timelineMedia, gestureClips, text
             <BackgroundLayer background={background} />
             {clips.map((clip) => <AbsoluteFill key={clip.id} style={{ ...getZoomStyle(zoomClips, { kind: 'recording', id: clip.id }, timelineTimeMs) }}><RecordingClipSequence clip={clip} src={src} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} sourceDurationMs={sourceDurationMs} defaultVisual={defaultVisual} defaultMedia={media} background={background} sceneSpeed={sceneSpeed} /></AbsoluteFill>)}
             {timelineMedia.map((item) => {
-              const asset = assetSources.find((source) => source.id === item.assetId);
+              const asset = assetSources.find((source) => source.id === item.assetId)
+                ?? (item.assetId === 'original-recording-audio' ? {
+                  id: item.assetId,
+                  url: src,
+                  name: 'Recording Audio',
+                  type: 'audio' as const,
+                  mimeType: 'audio/webm',
+                  durationMs: sourceDurationMs,
+                  width: 1,
+                  height: 1,
+                } : undefined);
               return asset ? <AbsoluteFill key={item.id} style={{ ...getZoomStyle(zoomClips, { kind: 'media', id: item.id }, timelineTimeMs) }}><TimelineMediaSequence item={item} asset={asset} compositionDurationInFrames={compositionDurationInFrames} canvasWidth={canvas.width} canvasHeight={canvas.height} defaultVisual={defaultVisual} background={background} sceneSpeed={sceneSpeed} /></AbsoluteFill> : null;
             })}
             <GestureOverlay gestureClips={gestureClips} interactions={interactions} clips={clips} crop={crop} timelineMedia={timelineMedia} assetSources={assetSources} canvasWidth={canvas.width} canvasHeight={canvas.height} sourceWidth={safeSourceWidth} sourceHeight={safeSourceHeight} media={media} sceneSpeed={sceneSpeed} />

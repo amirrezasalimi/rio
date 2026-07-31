@@ -14,6 +14,8 @@ export interface StoredRecording {
   mimeType: string;
   createdAt: number;
   durationMs: number;
+  /** Whether the recorded media stream contained an audio track. */
+  hasAudio?: boolean;
   captureMode?: CaptureMode;
   crop?: CropArea;
   interactions?: RecordedInteraction[];

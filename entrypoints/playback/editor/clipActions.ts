@@ -83,6 +83,56 @@ export function duplicateSelectedTimelineItem(): boolean {
   return true;
 }
 
+export function splitSelectedTimelineItemAudio(): boolean {
+  const item = selectedItem();
+  if (!item || item.kind !== 'recording') return false;
+
+  const state = useEditorStore.getState();
+  const clip = item.item;
+  const alreadyDetached = clip.audioDetached || state.timelineMedia.some((media) =>
+    media.assetId === 'original-recording-audio'
+    && media.sourceStartMs === clip.sourceStartMs
+    && media.sourceEndMs === clip.sourceEndMs
+    && media.timelineStartMs === clip.timelineStartMs
+  );
+  if (alreadyDetached) return false;
+
+  // Create an audio-only media item that matches the clip's properties
+  const audioItem: TimelineMediaItem = {
+    id: crypto.randomUUID(),
+    assetId: 'original-recording-audio', // Using a special ID to indicate it's from the original recording
+    type: 'audio',
+    name: 'Recording Audio',
+    assetDurationMs: clip.sourceEndMs, // Roughly, though could be longer
+    sourceStartMs: clip.sourceStartMs,
+    sourceEndMs: clip.sourceEndMs,
+    timelineStartMs: clip.timelineStartMs,
+    playbackRate: clip.playbackRate,
+    scale: 0,
+    positionX: 50,
+    positionY: 50,
+    opacity: 0,
+    volume: clip.volume ?? 100,
+    fadeInMs: 0,
+    fadeOutMs: 0,
+    holdLastFrame: false,
+  };
+
+  useHistoryStore.getState().beginTransaction('Detach audio');
+
+  // Mute the original clip
+  state.updateSelectedClip({ volume: 0, audioDetached: true });
+
+  // Add the detached audio item
+  state.setTimelineMedia((current) => [...current, audioItem]);
+
+  // Select the new audio item
+  state.setSelectedTimelineItem({ kind: 'media', id: audioItem.id });
+
+  useHistoryStore.getState().commitTransaction();
+  return true;
+}
+
 export function deleteSelectedZoomPoint(): boolean {
   const state = useEditorStore.getState();
   const selection = state.selectedTimelineItem;

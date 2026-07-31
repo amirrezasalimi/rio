@@ -23,6 +23,7 @@ import type {
 } from '../editor/types';
 import { getPlaybackRate, getTimelineItemDurationMs } from '../editor/types';
 import { createTimelineMediaPlacement } from '../editor/mediaPlacement';
+import { AudioWaveform } from './AudioWaveform';
 import { ClipContextMenu } from './ClipContextMenu';
 
 const MIN_ITEM_MS = 150;
@@ -46,6 +47,9 @@ interface MediaLibraryProps {
 
 interface MediaTimelineLaneProps {
   items: TimelineMediaItem[];
+  assets: TimelineAssetSource[];
+  recordingUrl?: string;
+  recordingDurationMs: number;
   timelineDurationMs: number;
   onItemsChange: (items: TimelineMediaItem[]) => void;
   onDragStateChange: (lockedDurationMs: number | undefined) => void;
@@ -66,6 +70,11 @@ function TypeIcon({ type }: { type: TimelineMediaType }) {
 
 function snap(value: number): number {
   return Math.round(value / SNAP_MS) * SNAP_MS;
+}
+
+function timeLabel(milliseconds: number): string {
+  const seconds = Math.max(0, milliseconds) / 1_000;
+  return seconds < 10 ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 }
 
 function AudioEnvelope({ item }: { item: TimelineMediaItem }) {
@@ -249,6 +258,9 @@ export function MediaLibrary({
 
 export function MediaTimelineLane({
   items,
+  assets,
+  recordingUrl,
+  recordingDurationMs,
   timelineDurationMs,
   onItemsChange,
   onDragStateChange,
@@ -350,6 +362,9 @@ export function MediaTimelineLane({
       {items.map((item, index) => {
         const selected = selectedItems.some((selection) => selection.kind === 'media' && selection.id === item.id);
         const extendsPastSource = item.type === 'video' && item.sourceEndMs > item.assetDurationMs;
+        const waveformSource = item.assetId === 'original-recording-audio'
+          ? recordingUrl
+          : assets.find((asset) => asset.id === item.assetId)?.url;
         return (
           <div key={item.id} className="relative h-12 border-b border-border/60 last:border-b-0">
             <div
@@ -367,10 +382,14 @@ export function MediaTimelineLane({
                 onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'media', id: item.id }, event.shiftKey); }}
                 className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border-2 transition-colors active:cursor-grabbing ${TYPE_STYLES[item.type]} ${selected ? 'ring-2 ring-primary-500/25' : ''}`}
               >
-                {item.type === 'audio' && <AudioEnvelope item={item} />}
+                {item.type === 'audio' && <>
+                  <AudioWaveform src={waveformSource} sourceStartMs={item.sourceStartMs} sourceEndMs={item.sourceEndMs} sourceDurationMs={item.assetId === 'original-recording-audio' ? recordingDurationMs : item.assetDurationMs} volume={item.volume} className="left-0 bottom-0 h-5 text-cream-950" />
+                  <AudioEnvelope item={item} />
+                </>}
                 <div className="pointer-events-none absolute inset-y-0 left-6 right-6 z-10 flex min-w-0 items-center gap-1.5">
                   <TypeIcon type={item.type} />
                   <span className="truncate text-[8px] font-semibold">{item.name}</span>
+                  {item.type === 'audio' && <span className="shrink-0 rounded bg-surface/70 px-1 font-mono text-[7px] font-semibold">{timeLabel(getTimelineItemDurationMs(item))}</span>}
                   {item.type === 'video' && <span className="shrink-0 font-mono text-[7px] font-semibold">{getPlaybackRate(item)}×</span>}
                   {extendsPastSource && <span className="shrink-0 rounded bg-surface/75 px-1 py-0.5 text-[7px] font-semibold">Held</span>}
                 </div>
