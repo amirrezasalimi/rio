@@ -1,9 +1,26 @@
 import { History, Redo2, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { jumpToHistory, useHistoryStore } from '../editor/history';
+
+interface PopoverPosition {
+  left: number;
+  top: number;
+  maxHeight: number;
+}
+
+const VIEWPORT_MARGIN = 12;
+const POPOVER_GAP = 8;
 
 export function HistoryMenu() {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<PopoverPosition>({
+    left: VIEWPORT_MARGIN,
+    top: VIEWPORT_MARGIN,
+    maxHeight: 384,
+  });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const past = useHistoryStore((state) => state.past);
   const future = useHistoryStore((state) => state.future);
   const canUndo = past.length > 0;
@@ -11,6 +28,41 @@ export function HistoryMenu() {
   
   const undo = () => useHistoryStore.getState().undo();
   const redo = () => useHistoryStore.getState().redo();
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const positionPopover = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      if (!trigger) return;
+
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const width = popoverRef.current?.offsetWidth ?? Math.min(256, viewportWidth - VIEWPORT_MARGIN * 2);
+      const height = popoverRef.current?.offsetHeight ?? 384;
+      const roomBelow = viewportHeight - trigger.bottom - POPOVER_GAP - VIEWPORT_MARGIN;
+      const roomAbove = trigger.top - POPOVER_GAP - VIEWPORT_MARGIN;
+      const openBelow = roomBelow >= Math.min(height, 160) || roomBelow >= roomAbove;
+      const availableHeight = Math.max(80, openBelow ? roomBelow : roomAbove);
+      const maxHeight = Math.min(384, availableHeight);
+      const preferredLeft = trigger.right - width;
+      const maxLeft = Math.max(VIEWPORT_MARGIN, viewportWidth - width - VIEWPORT_MARGIN);
+      const left = Math.max(VIEWPORT_MARGIN, Math.min(preferredLeft, maxLeft));
+      const top = openBelow
+        ? trigger.bottom + POPOVER_GAP
+        : Math.max(VIEWPORT_MARGIN, trigger.top - POPOVER_GAP - Math.min(height, maxHeight));
+
+      setPosition({ left, top, maxHeight });
+    };
+
+    positionPopover();
+    window.addEventListener('resize', positionPopover);
+    window.addEventListener('scroll', positionPopover, true);
+    return () => {
+      window.removeEventListener('resize', positionPopover);
+      window.removeEventListener('scroll', positionPopover, true);
+    };
+  }, [open, past.length, future.length]);
 
   return (
     <div className="relative flex items-center">
@@ -36,7 +88,11 @@ export function HistoryMenu() {
         </button>
         <div className="h-4 w-px bg-border" />
         <button
+          ref={triggerRef}
           type="button"
+          aria-label="History"
+          aria-expanded={open}
+          aria-haspopup="dialog"
           onClick={() => setOpen(!open)}
           title="History"
           className={`flex items-center justify-center rounded-r-md px-2 py-1.5 hover:bg-control-hover ${open ? 'bg-cream-100 text-primary-600' : 'text-ink'}`}
@@ -45,10 +101,16 @@ export function HistoryMenu() {
         </button>
       </div>
 
-      {open && (
+      {open && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onPointerDown={() => setOpen(false)} />
-          <div className="absolute right-0 top-[120%] z-50 flex max-h-96 w-64 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-ink/20">
+          <div className="fixed inset-0 z-[90]" onPointerDown={() => setOpen(false)} />
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label="Edit history"
+            className="fixed z-[100] flex w-[min(16rem,calc(100vw-24px))] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-ink/20"
+            style={{ left: position.left, top: position.top, maxHeight: position.maxHeight }}
+          >
             <div className="border-b border-border px-3 py-2 text-[10px] font-semibold text-ink">
               History
             </div>
@@ -89,7 +151,8 @@ export function HistoryMenu() {
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
