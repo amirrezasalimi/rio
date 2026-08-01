@@ -60,7 +60,7 @@ export function GestureSettingsPanel() {
 
   return (
     <div>
-      <InspectorSection icon={MousePointerClick} title="Source & actions" summary={`${clip.settings.enabled ? Object.values(clip.settings.enabled).filter(Boolean).length : 0} action types enabled`} defaultOpen>
+      <InspectorSection icon={MousePointerClick} title="Source & actions" summary={`${clip.settings.enabled ? Object.values(clip.settings.enabled).filter(Boolean).length : 0} action types enabled`} searchTerms="video pointer movement click double click drag scroll enabled recorded" defaultOpen>
         <label className="block text-[9px] font-semibold text-muted">Source video<select value={clip.sourceAssetId ?? 'current'} onChange={(event) => setSource(event.currentTarget.value)} className="mt-1.5 w-full rounded-xl border border-border bg-control px-2.5 py-2 text-[10px] font-semibold text-ink outline-none focus:border-selection-border">{sources.map((source) => <option key={source.id} value={source.id}>{source.name} · {(source.durationMs / 1_000).toFixed(1)}s · {source.interactions.length} actions</option>)}</select></label>
         <p className="mb-2 mt-3 text-[10px] font-semibold text-ink">Recorded actions</p>
         <div className="space-y-1.5">
@@ -73,7 +73,7 @@ export function GestureSettingsPanel() {
         </div>
       </InspectorSection>
 
-      <InspectorSection icon={WandSparkles} title="Effect" summary={`${ANIMATIONS.find((animation) => animation.value === clip.settings.animation)?.label} · ${clip.settings.durationMs}ms`} defaultOpen>
+      <InspectorSection icon={WandSparkles} title="Effect" summary={`${ANIMATIONS.find((animation) => animation.value === clip.settings.animation)?.label} · ${clip.settings.durationMs}ms`} searchTerms="animation pulse ripple burst duration size opacity" defaultOpen>
         <div className="grid grid-cols-3 gap-1.5">
           {ANIMATIONS.map((animation) => (
             <button key={animation.value} type="button" aria-pressed={clip.settings.animation === animation.value} onClick={() => { useHistoryStore.getState().record('Change gesture animation'); update({ animation: animation.value }); }} className={`rounded-xl border px-2 py-2.5 text-[9px] font-semibold transition ${clip.settings.animation === animation.value ? 'border-selection-border bg-selection text-primary-800' : 'border-border bg-control text-muted hover:border-primary-200'}`}>
@@ -87,7 +87,7 @@ export function GestureSettingsPanel() {
         <EditorRange className="mt-3" label="Opacity" value={clip.settings.opacity} min={10} max={100} suffix="%" onChange={(opacity) => update({ opacity })} />
       </InspectorSection>
 
-      <InspectorSection icon={Palette} title="Colors" summary="Cursor, click, drag and scroll">
+      <InspectorSection icon={Palette} title="Colors" summary="Cursor, click, drag and scroll" searchTerms="pointer cursor click drag scroll color">
         <div className="grid grid-cols-2 gap-1.5">
           <ColorControl label="Cursor" value={clip.settings.cursorColor} onChange={(cursorColor) => update({ cursorColor })} onBlur={() => useHistoryStore.getState().record('Change cursor color')} />
           <ColorControl label="Click" value={clip.settings.clickColor} onChange={(clickColor) => update({ clickColor })} onBlur={() => useHistoryStore.getState().record('Change click color')} />
@@ -96,7 +96,7 @@ export function GestureSettingsPanel() {
         </div>
       </InspectorSection>
 
-      <InspectorSection icon={Sparkles} title="Pointer" summary={`${clip.settings.cursorSize}px cursor · ${clip.settings.trailWidth}px trail`}>
+      <InspectorSection icon={Sparkles} title="Pointer" summary={`${clip.settings.cursorSize}px cursor · ${clip.settings.trailWidth}px trail`} searchTerms="cursor size drag trail width timing">
         <EditorRange label="Cursor size" value={clip.settings.cursorSize} min={8} max={48} suffix="px" onChange={(cursorSize) => update({ cursorSize })} />
         <EditorRange className="mt-3" label="Drag trail" value={clip.settings.trailWidth} min={1} max={18} suffix="px" onChange={(trailWidth) => update({ trailWidth })} />
         <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary-100 bg-selection/70 p-2.5 text-[9px] leading-relaxed text-primary-800"><Move className="size-3.5 shrink-0" /><span>Gesture timing follows edited recording clips. Move or trim this layer to retime the effects.</span><MousePointer2 className="size-3.5 shrink-0" /></div>
