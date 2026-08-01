@@ -236,13 +236,6 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
       </>}
 
       {mode === 'selection' && <>
-      <div className="rounded-xl border border-primary-100 bg-primary-50/60 px-2.5 py-2">
-        <p className="text-[8px] font-semibold uppercase tracking-[0.12em] text-primary-700">Selected clip</p>
-        <p className="mt-0.5 truncate text-[10px] font-semibold text-ink">
-          {isUploadedMedia ? selectedUpload.name : 'Screen recording'}
-        </p>
-      </div>
-
       {(!isUploadedMedia || selectedUpload.type !== 'audio') && (
         <>
           {isUploadedMedia && selectedUpload.type !== 'audio' && (
@@ -406,9 +399,9 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         </label>
       )}
 
-      <div className="grid grid-cols-2 gap-1.5">
-        <button type="button" disabled={isUploadedMedia && selectedUpload.type === 'audio'} onClick={() => { useHistoryStore.getState().record('Center media'); updateTransform({ positionX: 50, positionY: 50 }); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50 disabled:opacity-35"><Crosshair className="size-3" /> Center</button>
-        <button type="button" onClick={() => { useHistoryStore.getState().record('Reset clip transform'); resetTransform(); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"><RotateCcw className="size-3" /> Reset clip</button>
+      <div className={`grid gap-1.5 ${isUploadedMedia && selectedUpload.type === 'audio' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {(!isUploadedMedia || selectedUpload.type !== 'audio') && <button type="button" onClick={() => { useHistoryStore.getState().record('Center media'); updateTransform({ positionX: 50, positionY: 50 }); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"><Crosshair className="size-3" /> Center</button>}
+        <button type="button" onClick={() => { useHistoryStore.getState().record('Reset clip transform'); resetTransform(); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"> <RotateCcw className="size-3" /> {isUploadedMedia && selectedUpload.type === 'audio' ? 'Reset audio' : 'Reset transform'}</button>
       </div>
       <p className="text-[9px] leading-relaxed text-muted">
         {isUploadedMedia

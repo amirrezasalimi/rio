@@ -1,5 +1,5 @@
 import { Check, Frame, Gauge, LayoutTemplate, Palette, Shapes, Sparkles } from 'lucide-react';
-import { useEffect, useRef, type ComponentType } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { BorderShape, ClipVisualSettings, FrameStyle, ShadowStyle } from '../editor/types';
 import { getClipVisualSettings, getPlaybackRate } from '../editor/types';
@@ -7,6 +7,7 @@ import { BackgroundPanel } from './BackgroundPanel';
 import { CanvasPanel } from './CanvasPanel';
 import { EditorRange } from './EditorRange';
 import { GestureSettingsPanel } from './GestureSettingsPanel';
+import { InspectorSection } from './InspectorSection';
 import { TextSettingsPanel } from './TextSettingsPanel';
 import { ZoomSettingsPanel } from './ZoomSettingsPanel';
 
@@ -20,21 +21,6 @@ const FRAME_STYLES: Array<{ value: FrameStyle; label: string }> = [
   { value: 'outline', label: 'Outline' },
   { value: 'border', label: 'Border' },
 ];
-
-function Section({ icon: Icon, title, children }: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="border-b border-border px-4 py-4 last:border-0">
-      <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-ink">
-        <Icon className="size-3.5 text-primary-600" /> {title}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function framePreview(style: FrameStyle): React.CSSProperties {
   if (style === 'glass-light') return { background: 'rgba(255,255,255,.55)', border: '1px solid white', boxShadow: '0 5px 12px rgba(24,50,74,.14)' };
@@ -158,13 +144,12 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
       {selectedText && <TextSettingsPanel />}
       {selectedZoom && <ZoomSettingsPanel />}
 
-      {speedItem && <Section icon={Gauge} title="Playback speed">
-        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => { useHistoryStore.getState().record('Change playback speed'); updatePlaybackRate(rate); }} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
-        <EditorRange className="mt-3" label="Custom speed" value={playbackRate} min={0.25} max={4} step={0.05} suffix="×" onChange={updatePlaybackRate} />
-        <p className="mt-2 text-[8px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
-      </Section>}
+      {!hasSelection && <InspectorSection key="project-canvas" icon={LayoutTemplate} title="Canvas" summary={`${store.canvas.width} × ${store.canvas.height} · ${store.canvas.ratio}`} defaultOpen><CanvasPanel mode="general" hasRecordingAudio={hasRecordingAudio} /></InspectorSection>}
+      {!hasSelection && <InspectorSection key="project-background" icon={Palette} title="Background" summary={`${store.background.type[0].toUpperCase()}${store.background.type.slice(1)} background`}><BackgroundPanel /></InspectorSection>}
 
-      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Frame} title="Media frame">
+      {hasSelection && !selectedGesture && !selectedText && !selectedZoom && <InspectorSection key={`${selectionKey}-controls`} icon={LayoutTemplate} title={selectedMedia?.type === 'audio' ? 'Audio' : 'Transform'} summary={selectedMedia?.type === 'audio' ? `Volume ${selectedMedia.volume}%` : 'Size, position, crop and fit'} defaultOpen><CanvasPanel mode="selection" hasRecordingAudio={hasRecordingAudio} /></InspectorSection>}
+
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-frame`} icon={Frame} title="Frame" summary={FRAME_STYLES.find((style) => style.value === visual.frameStyle)?.label} defaultOpen>
         <div className="grid grid-cols-2 gap-1.5">
           {FRAME_STYLES.map((style) => (
             <button key={style.value} type="button" onClick={() => { useHistoryStore.getState().record('Change frame style'); updateVisual({ frameStyle: style.value }); }} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}>
@@ -173,9 +158,9 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
             </button>
           ))}
         </div>
-      </Section>}
+      </InspectorSection>}
 
-      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Shapes} title="Border shape">
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-border`} icon={Shapes} title="Border" summary={`${visual.borderShape} · ${visual.borderWidth}px stroke`}>
         <div className="grid grid-cols-3 gap-1.5">
           {shapes.map((shape) => (
             <button key={shape} type="button" onClick={() => { useHistoryStore.getState().record('Change border shape'); updateVisual({ borderShape: shape }); }} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
@@ -192,13 +177,9 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
         </div>
         <EditorRange className="mt-3" label="Border opacity" value={visual.borderOpacity} min={0} max={100} suffix="%" onChange={(borderOpacity) => updateVisual({ borderOpacity })} />
         <div className="mt-2 flex gap-1.5">{['#ffffff', '#328fdf', '#ed674e', '#18324a'].map((color) => <button key={color} type="button" aria-label={`Border color ${color}`} onClick={() => { useHistoryStore.getState().record('Change border color'); updateVisual({ borderColor: color }); }} className="size-6 rounded-full border-2 border-white shadow-sm" style={{ background: color }} />)}</div>
-      </Section>}
+      </InspectorSection>}
 
-      {!hasSelection && <Section icon={Palette} title="Background"><BackgroundPanel /></Section>}
-      {!hasSelection && <Section icon={LayoutTemplate} title="Canvas"><CanvasPanel mode="general" hasRecordingAudio={hasRecordingAudio} /></Section>}
-      {hasSelection && !selectedGesture && !selectedText && !selectedZoom && <Section icon={LayoutTemplate} title={selectedMedia ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} controls` : 'Recording controls'}><CanvasPanel mode="selection" hasRecordingAudio={hasRecordingAudio} /></Section>}
-
-      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <Section icon={Sparkles} title="Shadow">
+      {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-shadow`} icon={Sparkles} title="Shadow" summary={`${visual.shadowStyle} · ${visual.shadowOpacity}% opacity`}>
         <div className="grid grid-cols-4 gap-1.5">
           {shadows.map((shadow) => (
             <button key={shadow} type="button" onClick={() => { useHistoryStore.getState().record('Change shadow style'); updateVisual({ shadowStyle: shadow }); }} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
@@ -209,7 +190,13 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
         </div>
         {visual.shadowStyle !== 'none' && <EditorRange className="mt-3" label="Opacity" value={visual.shadowOpacity} min={0} max={100} suffix="%" onChange={(shadowOpacity) => updateVisual({ shadowOpacity })} />}
         {visual.shadowStyle === 'adaptive' && <div className="mt-3"><LightBox x={visual.shadowLightX} y={visual.shadowLightY} onChange={(shadowLightX, shadowLightY) => updateVisual({ shadowLightX, shadowLightY })} /></div>}
-      </Section>}
+      </InspectorSection>}
+
+      {speedItem && <InspectorSection key={`${selectionKey}-speed`} icon={Gauge} title="Playback speed" summary={`${playbackRate}×`}>
+        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => { useHistoryStore.getState().record('Change playback speed'); updatePlaybackRate(rate); }} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
+        <EditorRange className="mt-3" label="Custom speed" value={playbackRate} min={0.25} max={4} step={0.05} suffix="×" onChange={updatePlaybackRate} />
+        <p className="mt-2 text-[9px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
+      </InspectorSection>}
     </aside>
   );
 }
