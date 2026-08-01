@@ -70,18 +70,27 @@ function TimelineMediaSurface({ item, asset, canvasWidth, canvasHeight, defaultV
   const visual = { ...defaultVisual, ...item.visual };
   const sourceWidth = Math.max(1, asset.width);
   const sourceHeight = Math.max(1, asset.height);
+  const ratio = item.aspectRatio === '16:9' ? 16 / 9
+    : item.aspectRatio === '4:3' ? 4 / 3
+      : item.aspectRatio === '1:1' ? 1
+        : item.aspectRatio === '9:16' ? 9 / 16
+          : sourceWidth / sourceHeight;
+  const sourceRatio = sourceWidth / sourceHeight;
   const fit = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight) * item.scale / 100;
-  const contentWidth = Math.max(2, Math.round(sourceWidth * fit));
-  const contentHeight = Math.max(2, Math.round(sourceHeight * fit));
+  const sourceContentWidth = Math.max(2, Math.round(sourceWidth * fit));
+  const sourceContentHeight = Math.max(2, Math.round(sourceHeight * fit));
+  const contentWidth = ratio >= sourceRatio ? sourceContentWidth : Math.max(2, Math.round(sourceContentHeight * ratio));
+  const contentHeight = ratio >= sourceRatio ? Math.max(2, Math.round(sourceContentWidth / ratio)) : sourceContentHeight;
+  const circular = item.cropShape === 'circle';
   const appearance = getFrameAppearance(visual.frameStyle, visual.borderOpacity, visual.borderWidth, visual.borderColor);
   const padding = typeof appearance.padding === 'number' ? appearance.padding : 0;
   const frameWidth = contentWidth + padding * 2;
   const frameHeight = contentHeight + padding * 2;
 
   return (
-    <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${item.positionX}%`, top: `${item.positionY}%`, transform: 'translate(-50%, -50%)', opacity: item.opacity / 100, boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}>
-      <Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}>
-        <div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>
+    <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${item.positionX}%`, top: `${item.positionY}%`, transform: 'translate(-50%, -50%)', opacity: item.opacity / 100, boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: circular ? '50%' : visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}>
+      <Shape shape={circular ? 'rounded' : visual.borderShape} width={frameWidth} height={frameHeight} radius={circular ? Math.min(frameWidth, frameHeight) / 2 : visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: circular ? '50%' : visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>
           {children}
         </div>
       </Shape>
@@ -92,6 +101,13 @@ function TimelineMediaSurface({ item, asset, canvasWidth, canvasHeight, defaultV
 function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canvasWidth, canvasHeight, defaultVisual, background, sceneSpeed }: { item: TimelineMediaItem; asset: TimelineAssetSource; compositionDurationInFrames: number; canvasWidth: number; canvasHeight: number; defaultVisual: ClipVisualSettings; background: BackgroundSettings; sceneSpeed: number }) {
   const { fps } = useVideoConfig();
   const src = asset.url;
+  const contentFit = item.contentFit ?? 'cover';
+  const mediaStyle: CSSProperties = {
+    width: '100%',
+    height: '100%',
+    transform: `scale(${Math.max(10, item.contentScale ?? 100) / 100})`,
+    transformOrigin: 'center',
+  };
   const from = Math.round(item.timelineStartMs / 1000 * fps / sceneSpeed);
   const durationInFrames = Math.max(1, Math.round(getTimelineItemDurationMs(item) / 1000 * fps / sceneSpeed));
   const playbackRate = item.type === 'video' ? getPlaybackRate(item) * sceneSpeed : 1;
@@ -133,25 +149,25 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
       )}
       {item.type === 'image' && (
         <Sequence from={from} durationInFrames={durationInFrames} premountFor={fps}>
-          {surface(<img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
+          {surface(<img src={src} alt="" style={{ ...mediaStyle, objectFit: contentFit }} />)}
         </Sequence>
       )}
       {item.type === 'video' && (
         <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>
-          {surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={item.volume / 100} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
+          {surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={item.volume / 100} objectFit={contentFit} style={mediaStyle} />)}
         </Sequence>
       )}
       {item.type === 'video' && frozenPlacementFrames > 0 && (
         <Sequence from={from + playableDurationInFrames} durationInFrames={frozenPlacementFrames} premountFor={fps}>
           <Freeze frame={playableDurationInFrames - 1}>
-            {surface(<Video src={src} trimBefore={trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
+            {surface(<Video src={src} trimBefore={trimBefore} muted objectFit={contentFit} style={mediaStyle} />)}
           </Freeze>
         </Sequence>
       )}
       {item.type === 'video' && trailingHoldDuration > 0 && (
         <Sequence from={placementEnd} durationInFrames={trailingHoldDuration} premountFor={fps}>
           <Freeze frame={playableDurationInFrames - 1}>
-            {surface(<Video src={src} trimBefore={trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}
+            {surface(<Video src={src} trimBefore={trimBefore} muted objectFit={contentFit} style={mediaStyle} />)}
           </Freeze>
         </Sequence>
       )}

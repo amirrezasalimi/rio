@@ -7,6 +7,7 @@ interface RecordingPanelProps {
   sessionId: string;
   state: RecordingSessionState;
   onCommand: (command: RecorderCommand) => void;
+  webcamEnabled?: boolean;
 }
 
 interface Position {
@@ -16,11 +17,13 @@ interface Position {
 
 const PANEL_MARGIN = 16;
 
-export function RecordingPanel({ sessionId, state, onCommand }: RecordingPanelProps) {
+export function RecordingPanel({ sessionId, state, onCommand, webcamEnabled }: RecordingPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [position, setPosition] = useState<Position>();
+
+
 
   useEffect(() => {
     setCollapsed(false);
@@ -60,22 +63,32 @@ export function RecordingPanel({ sessionId, state, onCommand }: RecordingPanelPr
   const disabled = saving || state.status === 'choosing';
 
   return (
-    <div
-      ref={panelRef}
-      className="pointer-events-auto fixed z-[2147483647] flex items-center overflow-hidden rounded-2xl border border-border bg-surface text-ink shadow-2xl shadow-ink/25"
-      style={position ? { left: position.x, top: position.y } : { right: PANEL_MARGIN, bottom: PANEL_MARGIN }}
-    >
-      <button
-        type="button"
-        aria-label="Move recording controls"
-        className="grid h-12 w-7 cursor-grab touch-none place-items-center text-muted hover:bg-cream-100 active:cursor-grabbing"
-        onPointerDown={startDragging}
-        onPointerMove={drag}
-        onPointerUp={stopDragging}
-        onPointerCancel={stopDragging}
+    <div className="fixed z-[2147483647]" style={position ? { left: position.x, top: position.y } : { right: PANEL_MARGIN, bottom: PANEL_MARGIN }}>
+      {webcamEnabled && (
+        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-10 size-24 -translate-x-1/2 overflow-hidden rounded-full border-4 border-surface bg-ink shadow-2xl shadow-ink/25">
+          <iframe
+            title="Webcam preview"
+            allow="camera"
+            src={(browser.runtime.getURL as (path: string) => string)('/webcam-preview.html')}
+            className="block size-full border-0"
+          />
+        </div>
+      )}
+      <div
+        ref={panelRef}
+        className="pointer-events-auto flex items-center overflow-hidden rounded-2xl border border-border bg-surface text-ink shadow-2xl shadow-ink/25"
       >
-        <GripVertical className="size-4" />
-      </button>
+        <button
+          type="button"
+          aria-label="Move recording controls"
+          className="grid h-12 w-7 cursor-grab touch-none place-items-center text-muted hover:bg-cream-100 active:cursor-grabbing"
+          onPointerDown={startDragging}
+          onPointerMove={drag}
+          onPointerUp={stopDragging}
+          onPointerCancel={stopDragging}
+        >
+          <GripVertical className="size-4" />
+        </button>
 
       <div className="flex h-12 items-center gap-2 border-l border-border px-2">
         <span className={`size-2 shrink-0 rounded-full ${paused ? 'bg-warning' : saving ? 'bg-primary-500' : 'animate-pulse bg-accent-500'}`} />
@@ -116,6 +129,7 @@ export function RecordingPanel({ sessionId, state, onCommand }: RecordingPanelPr
         >
           {collapsed ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
+      </div>
       </div>
     </div>
   );

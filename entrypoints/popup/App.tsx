@@ -1,8 +1,32 @@
-import { AppWindow, Circle, Crop, FilePlus2, FolderKanban, Mic, Monitor, PanelsTopLeft, Volume2, type LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { AppWindow, Circle, Crop, FilePlus2, FolderKanban, Mic, Monitor, PanelsTopLeft, Volume2, Camera, type LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
 import type { CaptureMode, RecordingOptions } from '../shared/recording/types';
 import { createBlankProject } from './blankProject';
+
+const OPTIONS_STORAGE_KEY = 'rio-recording-options';
+const defaultOptions: RecordingOptions = {
+  mode: 'browser',
+  microphone: false,
+  sourceAudio: false,
+  webcam: false,
+};
+
+function getSavedOptions(): RecordingOptions {
+  try {
+    const saved = localStorage.getItem(OPTIONS_STORAGE_KEY);
+    if (!saved) return defaultOptions;
+    const parsed = JSON.parse(saved) as Partial<RecordingOptions>;
+    return {
+      mode: ['browser', 'window', 'monitor', 'region'].includes(parsed.mode ?? '') ? parsed.mode as CaptureMode : defaultOptions.mode,
+      microphone: parsed.microphone ?? defaultOptions.microphone,
+      sourceAudio: parsed.sourceAudio ?? defaultOptions.sourceAudio,
+      webcam: parsed.webcam ?? defaultOptions.webcam,
+    };
+  } catch {
+    return defaultOptions;
+  }
+}
 
 const modes: Array<{ id: CaptureMode; title: string; icon: LucideIcon }> = [
   { id: 'browser', title: 'Tab', icon: PanelsTopLeft },
@@ -30,13 +54,13 @@ function OptionToggle({ checked, icon: ToggleIcon, label, onChange }: {
 }
 
 function App() {
-  const [options, setOptions] = useState<RecordingOptions>({
-    mode: 'browser',
-    microphone: false,
-    sourceAudio: false,
-  });
+  const [options, setOptions] = useState<RecordingOptions>(getSavedOptions);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(options));
+  }, [options]);
 
   const openBlankProject = async () => {
     setOpening(true);
@@ -123,6 +147,12 @@ function App() {
           icon={Volume2}
           label="Source audio"
           onChange={(sourceAudio) => setOptions((current) => ({ ...current, sourceAudio }))}
+        />
+        <OptionToggle
+          checked={options.webcam}
+          icon={Camera}
+          label="Webcam"
+          onChange={(webcam) => setOptions((current) => ({ ...current, webcam }))}
         />
       </div>
 

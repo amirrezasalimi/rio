@@ -66,6 +66,7 @@ async function resolveAsset(asset: StoredEditorAsset): Promise<TimelineAssetSour
     interactions: asset.interactions,
     crop: asset.crop,
     ...metadata,
+    durationMs: asset.durationMs ?? metadata.durationMs,
   };
 }
 
@@ -173,13 +174,23 @@ function App() {
           setAssetSources(resolvedAssets);
           const migrated = saved ? {
             ...saved,
-            timelineMedia: (saved.timelineMedia ?? []).map((item) => ({
-              ...item,
-              fadeInMs: item.fadeInMs ?? 0,
-              fadeOutMs: item.fadeOutMs ?? 0,
-              holdLastFrame: item.holdLastFrame ?? false,
-              playbackRate: item.playbackRate ?? 1,
-            })),
+            timelineMedia: (saved.timelineMedia ?? []).map((item) => {
+              const asset = resolvedAssets.find((source) => source.id === item.assetId);
+              const hasStaleWebcamFallback = asset?.name === 'Webcam recording'
+                && item.holdLastFrame === true
+                && item.sourceStartMs === 0
+                && Math.abs(item.assetDurationMs - 5_000) < 1
+                && Math.abs(item.sourceEndMs - item.assetDurationMs) < 1;
+              return {
+                ...item,
+                assetDurationMs: hasStaleWebcamFallback ? asset.durationMs : item.assetDurationMs,
+                sourceEndMs: hasStaleWebcamFallback ? Math.min(asset.durationMs, stored.durationMs) : item.sourceEndMs,
+                fadeInMs: item.fadeInMs ?? 0,
+                fadeOutMs: item.fadeOutMs ?? 0,
+                holdLastFrame: hasStaleWebcamFallback ? asset.durationMs < stored.durationMs : item.holdLastFrame ?? false,
+                playbackRate: item.playbackRate ?? 1,
+              };
+            }),
             zoomClips: (saved.zoomClips ?? []).map((clip) => ({
               ...clip,
               animation: clip.animation ?? 'smooth',
@@ -219,6 +230,43 @@ function App() {
             sceneSpeed: saved.sceneSpeed ?? 1,
           } : undefined;
           useEditorStore.getState().initialize(stored.durationMs, migrated);
+          if (!saved) {
+            const webcam = resolvedAssets.find((asset) => asset.name === 'Webcam recording' && asset.type === 'video');
+            if (webcam) {
+              useEditorStore.getState().setTimelineMedia([{
+                id: crypto.randomUUID(),
+                assetId: webcam.id,
+                type: 'video',
+                name: webcam.name,
+                assetDurationMs: webcam.durationMs,
+                sourceStartMs: 0,
+                sourceEndMs: Math.min(webcam.durationMs, stored.durationMs),
+                timelineStartMs: 0,
+                playbackRate: 1,
+                scale: 24,
+                positionX: 87,
+                positionY: 81,
+                opacity: 100,
+                volume: 0,
+                fadeInMs: 0,
+                fadeOutMs: 0,
+                holdLastFrame: webcam.durationMs < stored.durationMs,
+                aspectRatio: '1:1',
+                cropShape: 'circle',
+                contentFit: 'cover',
+                contentScale: 100,
+                visual: {
+                  frameStyle: 'outline',
+                  borderShape: 'rounded',
+                  cornerRadius: 72,
+                  borderWidth: 4,
+                  borderColor: '#ffffff',
+                  borderOpacity: 100,
+                  shadowStyle: 'spread',
+                },
+              }]);
+            }
+          }
           setProjectReady(true);
         }
       })

@@ -17,6 +17,7 @@ interface ShowControlsMessage {
   sessionId: string;
   state: RecordingSessionState;
   area?: CropArea;
+  webcamEnabled?: boolean;
 }
 
 interface UpdateControlsMessage {
@@ -43,6 +44,7 @@ export default defineContentScript({
     let controlsSessionId = '';
     let controlsState: RecordingSessionState = { status: 'choosing', elapsedMs: 0 };
     let controlsArea: CropArea | undefined;
+    let webcamEnabled = false;
     let stopInteractionTracking: (() => void) | undefined;
 
     const stopTracking = () => {
@@ -69,6 +71,7 @@ export default defineContentScript({
           <RecordingPanel
             sessionId={controlsSessionId}
             state={controlsState}
+            webcamEnabled={webcamEnabled}
             onCommand={(command) => {
               void browser.runtime.sendMessage({
                 type: 'recorder-command',
@@ -86,6 +89,8 @@ export default defineContentScript({
       controlsSessionId = message.sessionId;
       controlsState = message.state;
       controlsArea = message.area;
+      webcamEnabled = message.webcamEnabled ?? false;
+
       controlsUi = await createShadowRootUi<Root>(ctx, {
         name: 'rio-recording-panel',
         position: 'modal',
@@ -144,6 +149,7 @@ export default defineContentScript({
         controlsUi = undefined;
         controlsSessionId = '';
         controlsArea = undefined;
+        webcamEnabled = false;
         return;
       }
 

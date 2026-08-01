@@ -28,6 +28,7 @@ export interface StoredEditorAsset {
   name: string;
   mimeType: string;
   createdAt: number;
+  durationMs?: number;
   gestureDurationMs?: number;
   interactions?: RecordedInteraction[];
   crop?: CropArea;

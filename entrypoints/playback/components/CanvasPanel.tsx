@@ -1,7 +1,7 @@
 import { Crosshair, Maximize2, RotateCcw, Share2, Snowflake, Gauge } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../editor/store';
-import type { CanvasRatio } from '../editor/types';
+import type { CanvasRatio, MediaAspectRatio, MediaContentFit, MediaCropShape } from '../editor/types';
 import { getClipMediaTransform, getTimelineItemDurationMs } from '../editor/types';
 import { EditorRange } from './EditorRange';
 
@@ -10,6 +10,14 @@ const RATIOS: Array<{ value: CanvasRatio; label: string }> = [
   { value: '4:3', label: 'Classic' },
   { value: '1:1', label: 'Square' },
   { value: '9:16', label: 'Story' },
+];
+
+const MEDIA_RATIOS: Array<{ value: MediaAspectRatio; label: string }> = [
+  { value: 'source', label: 'Original' },
+  { value: '1:1', label: '1:1' },
+  { value: '16:9', label: '16:9' },
+  { value: '4:3', label: '4:3' },
+  { value: '9:16', label: '9:16' },
 ];
 
 const SOCIAL_PRESETS = [
@@ -235,7 +243,82 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
 
       {(!isUploadedMedia || selectedUpload.type !== 'audio') && (
         <>
-          <EditorRange label="Media size" value={transform.scale} min={10} max={160} suffix="%" onChange={(scale) => updateTransform({ scale })} />
+          {isUploadedMedia && selectedUpload.type !== 'audio' && (
+            <div className="space-y-2 rounded-xl border border-border bg-cream-50 p-2.5">
+              <div>
+                <p className="mb-1.5 text-[9px] font-semibold text-muted">Clip ratio</p>
+                <div className="grid grid-cols-5 gap-1">
+                  {MEDIA_RATIOS.map((ratio) => (
+                    <button
+                      key={ratio.value}
+                      type="button"
+                      onClick={() => {
+                        useHistoryStore.getState().record('Change media ratio');
+                        updateTimelineMediaItem(selectedUpload.id, { aspectRatio: ratio.value });
+                      }}
+                      className={`rounded-lg border px-1 py-1.5 text-[8px] font-semibold transition ${
+                        (selectedUpload.aspectRatio ?? 'source') === ratio.value
+                          ? 'border-primary-400 bg-primary-50 text-primary-700'
+                          : 'border-border bg-surface text-muted hover:border-primary-200'
+                      }`}
+                    >
+                      {ratio.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[9px] font-semibold text-muted">Crop shape</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['rectangle', 'circle'] as MediaCropShape[]).map((shape) => (
+                    <button
+                      key={shape}
+                      type="button"
+                      onClick={() => {
+                        useHistoryStore.getState().record('Change media crop shape');
+                        updateTimelineMediaItem(selectedUpload.id, {
+                          cropShape: shape,
+                          aspectRatio: shape === 'circle' ? '1:1' : selectedUpload.aspectRatio,
+                        });
+                      }}
+                      className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
+                        (selectedUpload.cropShape ?? 'rectangle') === shape
+                          ? 'border-primary-400 bg-primary-50 text-primary-700'
+                          : 'border-border bg-surface text-muted hover:border-primary-200'
+                      }`}
+                    >
+                      {shape}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {isUploadedMedia && selectedUpload.type !== 'audio' && (
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['cover', 'contain', 'fill'] as MediaContentFit[]).map((fit) => (
+                <button
+                  key={fit}
+                  type="button"
+                  onClick={() => {
+                    useHistoryStore.getState().record('Change media fit');
+                    updateTimelineMediaItem(selectedUpload.id, { contentFit: fit });
+                  }}
+                  className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
+                    (selectedUpload.contentFit ?? 'cover') === fit
+                      ? 'border-primary-400 bg-primary-50 text-primary-700'
+                      : 'border-border bg-surface text-muted hover:border-primary-200'
+                  }`}
+                >
+                  {fit}
+                </button>
+              ))}
+            </div>
+          )}
+          <EditorRange label="Clip size" value={transform.scale} min={5} max={160} suffix="%" onChange={(scale) => updateTransform({ scale })} />
+          {isUploadedMedia && selectedUpload.type !== 'audio' && (
+            <EditorRange label="Content zoom" value={selectedUpload.contentScale ?? 100} min={50} max={300} suffix="%" onChange={(contentScale) => updateTimelineMediaItem(selectedUpload.id, { contentScale })} />
+          )}
           <div className="grid grid-cols-2 gap-2">
             <EditorRange label="Horizontal" value={transform.positionX} min={0} max={100} suffix="%" onChange={(positionX) => updateTransform({ positionX })} />
             <EditorRange label="Vertical" value={transform.positionY} min={0} max={100} suffix="%" onChange={(positionY) => updateTransform({ positionY })} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRecorderChannel } from '../recording/channel';
 import { getVideoCropRect, selectRecordingMimeType, stopStream } from '../recording/media';
-import { saveRecording } from '../recording/storage';
+import { saveEditorAsset, saveRecording } from '../recording/storage';
 import type {
   CropArea,
   InteractionEventInput,
@@ -14,11 +14,14 @@ import type {
 interface PendingCapture {
   displayStream: MediaStream;
   microphoneStream?: MediaStream;
+  webcamStream?: MediaStream;
 }
 
 interface ActiveCapture extends PendingCapture {
   outputStream: MediaStream;
   recorder: MediaRecorder;
+  webcamRecorder?: MediaRecorder;
+  webcamStopped?: Promise<Blob | undefined>;
   audioContext?: AudioContext;
   stopDrawing?: () => void;
   startedAt: number;
@@ -67,10 +70,12 @@ export function useScreenRecorder() {
     stopStream(active?.outputStream);
     stopStream(active?.displayStream);
     stopStream(active?.microphoneStream);
+    stopStream(active?.webcamStream);
 
     const pending = pendingRef.current;
     stopStream(pending?.displayStream);
     stopStream(pending?.microphoneStream);
+    stopStream(pending?.webcamStream);
 
     activeRef.current = null;
     pendingRef.current = null;
@@ -78,11 +83,13 @@ export function useScreenRecorder() {
   }, []);
 
   const stop = useCallback(() => {
-    const recorder = activeRef.current?.recorder;
-    if (recorder && recorder.state !== 'inactive') {
-      publishState({ ...stateRef.current, status: 'saving' });
-      recorder.stop();
+    const active = activeRef.current;
+    if (!active || active.recorder.state === 'inactive') return;
+    publishState({ ...stateRef.current, status: 'saving' });
+    if (active.webcamRecorder && active.webcamRecorder.state !== 'inactive') {
+      active.webcamRecorder.stop();
     }
+    active.recorder.stop();
   }, [publishState]);
 
   const pause = useCallback(() => {
@@ -90,6 +97,7 @@ export function useScreenRecorder() {
     if (!active || active.recorder.state !== 'recording') return;
 
     active.recorder.pause();
+    active.webcamRecorder?.pause();
     active.pausedAt = performance.now();
     publishState({ ...stateRef.current, status: 'paused' });
   }, [publishState]);
@@ -101,6 +109,7 @@ export function useScreenRecorder() {
     if (active.pausedAt) active.pausedDuration += performance.now() - active.pausedAt;
     active.pausedAt = undefined;
     active.recorder.resume();
+    active.webcamRecorder?.resume();
     publishState({ ...stateRef.current, status: 'recording' });
   }, [publishState]);
 
@@ -160,6 +169,8 @@ export function useScreenRecorder() {
 
     return { audioContext, audioTracks: destination.stream.getAudioTracks() };
   }, []);
+
+
 
   const createRegionStream = useCallback((stream: MediaStream, crop: CropArea, normalized = false) => {
     const sourceTrack = stream.getVideoTracks()[0];
@@ -257,6 +268,21 @@ export function useScreenRecorder() {
     const mimeType = selectRecordingMimeType();
     const recorder = new MediaRecorder(outputStream, mimeType ? { mimeType } : undefined);
     const chunks: Blob[] = [];
+    const webcamChunks: Blob[] = [];
+    const webcamRecorder = capture.webcamStream?.getVideoTracks().length
+      ? new MediaRecorder(capture.webcamStream, mimeType ? { mimeType } : undefined)
+      : undefined;
+    const webcamStopped = webcamRecorder
+      ? new Promise<Blob | undefined>((resolve) => {
+          const finish = () => resolve(webcamChunks.length
+            ? new Blob(webcamChunks, { type: webcamRecorder.mimeType || mimeType || 'video/webm' })
+            : undefined);
+          webcamRecorder.addEventListener('dataavailable', (event) => {
+            if (event.data.size > 0) webcamChunks.push(event.data);
+          });
+          webcamRecorder.addEventListener('stop', finish, { once: true });
+        })
+      : undefined;
     const startedAt = performance.now();
 
     recorder.ondataavailable = (event) => {
@@ -292,6 +318,23 @@ export function useScreenRecorder() {
           crop,
           interactions: active?.interactions.filter((event) => event.timestampMs <= durationMs) ?? [],
         });
+        const webcamBlob = active?.webcamStopped
+          ? await Promise.race([
+              active.webcamStopped,
+              new Promise<undefined>((resolve) => window.setTimeout(resolve, 5_000)),
+            ])
+          : undefined;
+        if (webcamBlob?.size) {
+          await saveEditorAsset({
+            id: crypto.randomUUID(),
+            recordingId: id,
+            blob: webcamBlob,
+            name: 'Webcam recording',
+            mimeType: webcamBlob.type || finalType,
+            createdAt: Date.now(),
+            durationMs,
+          });
+        }
         cleanUp();
         publishState({ status: 'idle', elapsedMs: 0 });
         await browser.tabs.create({ url: browser.runtime.getURL(`/playback.html?id=${id}`) });
@@ -310,6 +353,8 @@ export function useScreenRecorder() {
       ...capture,
       outputStream,
       recorder,
+      webcamRecorder,
+      webcamStopped,
       audioContext,
       stopDrawing,
       startedAt,
@@ -319,6 +364,7 @@ export function useScreenRecorder() {
     pendingRef.current = null;
     setPreviewStream(undefined);
     recorder.start(1_000);
+    webcamRecorder?.start(1_000);
     publishState({ status: 'recording', elapsedMs: 0 });
     startTimer();
 
@@ -344,7 +390,12 @@ export function useScreenRecorder() {
             audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           })
         : undefined;
-      const capture = { displayStream, microphoneStream };
+      const webcamStream = options.webcam
+        ? await navigator.mediaDevices.getUserMedia({
+            video: true,
+          })
+        : undefined;
+      const capture = { displayStream, microphoneStream, webcamStream };
       pendingRef.current = capture;
 
       if (options.mode === 'region') {
@@ -374,6 +425,7 @@ export function useScreenRecorder() {
     sourceAudioAllowed: boolean,
     source: 'desktop' | 'tab' = 'desktop',
     crop?: CropArea,
+    approvedWebcamStream?: MediaStream,
   ) => {
     cleanUp();
     publishState({ status: 'choosing', elapsedMs: 0 });
@@ -400,7 +452,10 @@ export function useScreenRecorder() {
             audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           })
         : undefined;
-      const capture = { displayStream, microphoneStream };
+      const webcamStream = approvedWebcamStream ?? (options.webcam
+        ? await navigator.mediaDevices.getUserMedia({ video: true })
+        : undefined);
+      const capture = { displayStream, microphoneStream, webcamStream };
       pendingRef.current = capture;
 
       await beginMediaRecorder(capture, crop, options.mode === 'region', options.mode);

@@ -45,6 +45,7 @@ async function createRecorderHostTab(sessionId: string, pending: PendingCapture)
     mode: pending.options.mode,
     microphone: String(pending.options.microphone),
     sourceAudio: String(pending.options.sourceAudio),
+    webcam: String(pending.options.webcam),
     targetTabId: String(pending.targetTabId),
   });
   if (pending.area) query.set('crop', JSON.stringify(pending.area));
@@ -53,7 +54,7 @@ async function createRecorderHostTab(sessionId: string, pending: PendingCapture)
   const recorderTab = await browser.tabs.create({
     url: browser.runtime.getURL(`/recorder.html?${query}`),
     windowId: targetTab.windowId,
-    active: false,
+    active: pending.options.webcam,
   });
   if (!recorderTab.id) throw new Error('Could not initialize the recording host.');
 
@@ -101,6 +102,7 @@ async function showPageControls(sessionId: string, pending: PendingCapture) {
     sessionId,
     state,
     area: pending.area,
+    webcamEnabled: pending.options.webcam,
   });
 }
 

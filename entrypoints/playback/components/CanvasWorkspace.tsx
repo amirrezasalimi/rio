@@ -191,8 +191,18 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
   const safeSourceHeight = Math.max(1, inputProps.sourceHeight);
   const selectedTransform = selectedUpload ?? (selectedRecording ? getClipMediaTransform(selectedRecording, inputProps.media) : inputProps.media);
   const fit = Math.min(inputProps.canvas.width / safeSourceWidth, inputProps.canvas.height / safeSourceHeight) * selectedTransform.scale / 100;
-  const overlayWidth = selectedUpload ? inputProps.canvas.width * selectedUpload.scale / 100 : safeSourceWidth * fit;
-  const overlayHeight = selectedUpload ? inputProps.canvas.height * selectedUpload.scale / 100 : safeSourceHeight * fit;
+  const selectedAsset = selectedUpload ? inputProps.assetSources.find((asset) => asset.id === selectedUpload.assetId) : undefined;
+  const selectedAssetRatio = selectedUpload?.aspectRatio === '16:9' ? 16 / 9
+    : selectedUpload?.aspectRatio === '4:3' ? 4 / 3
+      : selectedUpload?.aspectRatio === '1:1' ? 1
+        : selectedUpload?.aspectRatio === '9:16' ? 9 / 16
+          : selectedAsset ? selectedAsset.width / Math.max(1, selectedAsset.height) : 1;
+  const selectedAssetBaseWidth = selectedAsset
+    ? Math.min(inputProps.canvas.width / selectedAsset.width, inputProps.canvas.height / selectedAsset.height) * selectedAsset.width
+    : inputProps.canvas.width;
+  const selectedAssetBaseHeight = selectedAssetBaseWidth / Math.max(selectedAssetRatio, 0.01);
+  const overlayWidth = selectedUpload ? selectedAssetBaseWidth * selectedUpload.scale / 100 : safeSourceWidth * fit;
+  const overlayHeight = selectedUpload ? selectedAssetBaseHeight * selectedUpload.scale / 100 : safeSourceHeight * fit;
   const canMoveSelection = Boolean(selectedRecording || selectedUpload) && (!selectedUpload || selectedUpload.type !== 'audio');
 
   return (

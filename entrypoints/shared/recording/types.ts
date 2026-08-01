@@ -14,6 +14,7 @@ export interface RecordingOptions {
   mode: CaptureMode;
   microphone: boolean;
   sourceAudio: boolean;
+  webcam: boolean;
 }
 
 export interface RecordingSessionState {

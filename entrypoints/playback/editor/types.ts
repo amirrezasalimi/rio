@@ -25,6 +25,9 @@ export type CanvasRatio = '16:9' | '4:3' | '1:1' | '9:16' | 'custom';
 export type NoiseType = 'grain' | 'paper' | 'dots' | 'scanlines';
 export type MeshMode = 'preset' | 'custom';
 export type TimelineMediaType = 'image' | 'video' | 'audio';
+export type MediaAspectRatio = 'source' | '16:9' | '4:3' | '1:1' | '9:16';
+export type MediaCropShape = 'rectangle' | 'circle';
+export type MediaContentFit = 'cover' | 'contain' | 'fill';
 export type TimelineSelection =
   | { kind: 'recording'; id: string }
   | { kind: 'media'; id: string }
@@ -158,6 +161,10 @@ export interface TimelineMediaItem {
   fadeInMs: number;
   fadeOutMs: number;
   holdLastFrame: boolean;
+  aspectRatio?: MediaAspectRatio;
+  cropShape?: MediaCropShape;
+  contentFit?: MediaContentFit;
+  contentScale?: number;
   visual?: Partial<ClipVisualSettings>;
 }
 
