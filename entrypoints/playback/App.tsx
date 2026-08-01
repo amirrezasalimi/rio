@@ -546,7 +546,7 @@ function App() {
   }
 
   return (
-    <main className="flex h-screen min-h-[620px] flex-col overflow-hidden bg-canvas text-ink">
+    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-canvas text-ink">
       <header className="z-40 flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
         <div className="flex items-center gap-3">
           <LogoMark />

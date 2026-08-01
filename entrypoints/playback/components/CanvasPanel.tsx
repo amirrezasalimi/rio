@@ -1,4 +1,4 @@
-import { Crosshair, Maximize2, RotateCcw, Share2, Snowflake, Gauge } from 'lucide-react';
+import { Crosshair, FlipHorizontal2, FlipVertical2, Gauge, Maximize2, RotateCcw, Share2, Snowflake } from 'lucide-react';
 import { useState } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { CanvasRatio, MediaAspectRatio, MediaContentFit, MediaCropShape } from '../editor/types';
@@ -117,9 +117,11 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         fadeInMs: 0,
         fadeOutMs: 0,
         holdLastFrame: false,
+        flipHorizontal: false,
+        flipVertical: false,
       });
     } else if (selectedRecording) {
-      updateSelectedClip({ media: { scale: 86, positionX: 50, positionY: 50 } });
+      updateSelectedClip({ media: { scale: 86, positionX: 50, positionY: 50, flipHorizontal: false, flipVertical: false } });
     } else resetMedia();
   };
 
@@ -322,6 +324,38 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
           <div className="grid grid-cols-2 gap-2">
             <EditorRange label="Horizontal" value={transform.positionX} min={0} max={100} suffix="%" onChange={(positionX) => updateTransform({ positionX })} />
             <EditorRange label="Vertical" value={transform.positionY} min={0} max={100} suffix="%" onChange={(positionY) => updateTransform({ positionY })} />
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              aria-pressed={transform.flipHorizontal ?? false}
+              onClick={() => {
+                useHistoryStore.getState().record('Flip clip horizontally');
+                updateTransform({ flipHorizontal: !(transform.flipHorizontal ?? false) });
+              }}
+              className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-[9px] font-semibold transition ${
+                transform.flipHorizontal
+                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  : 'border-border bg-surface text-muted hover:border-primary-200'
+              }`}
+            >
+              <FlipHorizontal2 className="size-3.5" /> Flip horizontal
+            </button>
+            <button
+              type="button"
+              aria-pressed={transform.flipVertical ?? false}
+              onClick={() => {
+                useHistoryStore.getState().record('Flip clip vertically');
+                updateTransform({ flipVertical: !(transform.flipVertical ?? false) });
+              }}
+              className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-[9px] font-semibold transition ${
+                transform.flipVertical
+                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  : 'border-border bg-surface text-muted hover:border-primary-200'
+              }`}
+            >
+              <FlipVertical2 className="size-3.5" /> Flip vertical
+            </button>
           </div>
         </>
       )}

@@ -63,9 +63,19 @@ export function RecordingPanel({ sessionId, state, onCommand, webcamEnabled }: R
   const disabled = saving || state.status === 'choosing';
 
   return (
-    <div className="fixed z-[2147483647]" style={position ? { left: position.x, top: position.y } : { right: PANEL_MARGIN, bottom: PANEL_MARGIN }}>
+    <div
+      ref={panelRef}
+      className="fixed z-[2147483647]"
+      style={{
+        ...(position ? { left: position.x, top: position.y } : { right: PANEL_MARGIN, bottom: PANEL_MARGIN }),
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
       {webcamEnabled && (
-        <div className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-10 size-24 -translate-x-1/2 overflow-hidden rounded-full border-4 border-surface bg-ink shadow-2xl shadow-ink/25">
+        <div className="pointer-events-none size-24 shrink-0 overflow-hidden rounded-full border-4 border-surface bg-ink shadow-2xl shadow-ink/25">
           <iframe
             title="Webcam preview"
             allow="camera"
@@ -74,10 +84,7 @@ export function RecordingPanel({ sessionId, state, onCommand, webcamEnabled }: R
           />
         </div>
       )}
-      <div
-        ref={panelRef}
-        className="pointer-events-auto flex items-center overflow-hidden rounded-2xl border border-border bg-surface text-ink shadow-2xl shadow-ink/25"
-      >
+      <div className="pointer-events-auto flex items-center overflow-hidden rounded-2xl border border-border bg-surface text-ink shadow-2xl shadow-ink/25">
         <button
           type="button"
           aria-label="Move recording controls"

@@ -105,7 +105,7 @@ function TimelineMediaSequence({ item, asset, compositionDurationInFrames, canva
   const mediaStyle: CSSProperties = {
     width: '100%',
     height: '100%',
-    transform: `scale(${Math.max(10, item.contentScale ?? 100) / 100})`,
+    transform: `scale(${Math.max(10, item.contentScale ?? 100) / 100}) scaleX(${item.flipHorizontal ? -1 : 1}) scaleY(${item.flipVertical ? -1 : 1})`,
     transformOrigin: 'center',
   };
   const from = Math.round(item.timelineStartMs / 1000 * fps / sceneSpeed);
@@ -195,10 +195,16 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const from = Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed);
   const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
   const volume = (clip.volume ?? 100) / 100;
+  const videoStyle: CSSProperties = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'fill',
+    transform: `scaleX(${media.flipHorizontal ? -1 : 1}) scaleY(${media.flipVertical ? -1 : 1})`,
+  };
 
   return <>
-    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={volume} style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Sequence>
-    {frozenDurationInFrames > 0 && <Sequence from={from + playableDurationInFrames} durationInFrames={frozenDurationInFrames} premountFor={fps}><Freeze frame={playableDurationInFrames - 1}>{surface(<Video src={src} trimBefore={trimBefore} muted style={{ width: '100%', height: '100%', objectFit: 'fill' }} />)}</Freeze></Sequence>}
+    <Sequence from={from} durationInFrames={playableDurationInFrames} premountFor={fps}>{surface(<Video src={src} trimBefore={trimBefore} playbackRate={playbackRate} volume={volume} style={videoStyle} />)}</Sequence>
+    {frozenDurationInFrames > 0 && <Sequence from={from + playableDurationInFrames} durationInFrames={frozenDurationInFrames} premountFor={fps}><Freeze frame={playableDurationInFrames - 1}>{surface(<Video src={src} trimBefore={trimBefore} muted style={videoStyle} />)}</Freeze></Sequence>}
   </>;
 }
 

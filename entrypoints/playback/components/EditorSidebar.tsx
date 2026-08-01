@@ -1,5 +1,5 @@
 import { Check, Frame, Gauge, LayoutTemplate, Palette, Shapes, Sparkles } from 'lucide-react';
-import type { ComponentType } from 'react';
+import { useEffect, useRef, type ComponentType } from 'react';
 import { useEditorStore } from '../editor/store';
 import type { BorderShape, ClipVisualSettings, FrameStyle, ShadowStyle } from '../editor/types';
 import { getClipVisualSettings, getPlaybackRate } from '../editor/types';
@@ -83,6 +83,7 @@ import { useHistoryStore } from '../editor/history';
 
 export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolean }) {
   const store = useEditorStore();
+  const sidebarRef = useRef<HTMLElement>(null);
   const shapes: BorderShape[] = ['curved', 'rounded', 'sharp'];
   const shadows: ShadowStyle[] = ['none', 'spread', 'huge', 'adaptive'];
   const selectedText = store.selectedTimelineItem?.kind === 'text'
@@ -109,7 +110,11 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
   const updateVisual = (patch: Partial<ClipVisualSettings>) => {
     if (selectedClip) store.updateSelectedClipVisual(patch);
     else if (selectedVisualMedia) {
+      const editsCropShape = patch.borderShape !== undefined
+        || patch.cornerRadius !== undefined
+        || patch.cornerSmoothing !== undefined;
       store.updateTimelineMediaItem(selectedVisualMedia.id, {
+        cropShape: editsCropShape ? 'rectangle' : selectedVisualMedia.cropShape,
         visual: { ...selectedVisualMedia.visual, ...patch },
       });
     }
@@ -122,6 +127,14 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
     if (selectedClip) store.updateSelectedClip({ playbackRate: rate });
     else if (selectedMedia?.type === 'video') store.updateTimelineMediaItem(selectedMedia.id, { playbackRate: rate });
   };
+  const selectionKey = store.selectedTimelineItem
+    ? `${store.selectedTimelineItem.kind}:${store.selectedTimelineItem.id}`
+    : 'canvas';
+
+  useEffect(() => {
+    sidebarRef.current?.scrollTo({ top: 0 });
+  }, [selectionKey]);
+
   const selectedLabel = selectedMedia
     ? `${selectedMedia.type[0].toUpperCase()}${selectedMedia.type.slice(1)} settings`
     : selectedClip
@@ -135,7 +148,7 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
             : 'Project settings';
 
   return (
-    <aside className="min-h-0 overflow-y-auto border-r border-border bg-surface">
+    <aside ref={sidebarRef} className="min-h-0 overscroll-contain overflow-y-auto border-r border-border bg-surface">
       <div className="sticky top-0 z-20 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
         <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-primary-700">{hasSelection ? 'Selected item' : 'Canvas'}</p>
         <p className="mt-0.5 truncate text-xs font-semibold text-ink">{selectedMedia?.name ?? selectedLabel}</p>
@@ -171,7 +184,7 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
             </button>
           ))}
         </div>
-        {visual.borderShape !== 'sharp' && <EditorRange className="mt-3" label="Radius" value={visual.cornerRadius} min={8} max={72} suffix="px" onChange={(cornerRadius) => updateVisual({ cornerRadius })} />}
+        {visual.borderShape !== 'sharp' && <EditorRange className="mt-3" label="Radius" value={visual.cornerRadius} min={8} max={200} suffix="px" onChange={(cornerRadius) => updateVisual({ cornerRadius })} />}
         {visual.borderShape === 'curved' && <EditorRange className="mt-3" label="Curve" value={visual.cornerSmoothing} min={0} max={1} step={0.01} onChange={(cornerSmoothing) => updateVisual({ cornerSmoothing })} />}
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
           <EditorRange label="Stroke" value={visual.borderWidth} min={0} max={16} suffix="px" onChange={(borderWidth) => updateVisual({ borderWidth })} />

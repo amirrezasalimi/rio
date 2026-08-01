@@ -165,6 +165,8 @@ export interface TimelineMediaItem {
   cropShape?: MediaCropShape;
   contentFit?: MediaContentFit;
   contentScale?: number;
+  flipHorizontal?: boolean;
+  flipVertical?: boolean;
   visual?: Partial<ClipVisualSettings>;
 }
 
@@ -201,6 +203,8 @@ export interface MediaTransform {
   scale: number;
   positionX: number;
   positionY: number;
+  flipHorizontal?: boolean;
+  flipVertical?: boolean;
 }
 
 export interface CanvasSettings {
@@ -482,7 +486,7 @@ export function createInitialSettings(durationMs: number): EditorSettings {
       scale: 100, positionX: 50, positionY: 50, blur: 0, noise: 0, noiseType: 'grain',
       meshPoints: createDefaultMeshPoints(),
     },
-    media: { scale: 86, positionX: 50, positionY: 50 },
+    media: { scale: 86, positionX: 50, positionY: 50, flipHorizontal: false, flipVertical: false },
     canvas: { ratio: '16:9', ...CANVAS_SIZES['16:9'] },
     sceneSpeed: 1,
   };

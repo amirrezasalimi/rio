@@ -104,7 +104,9 @@ export function GestureOverlay({ gestureClips, interactions, clips, crop, timeli
         const editedTimelineMs = item.timelineStartMs + (event.timestampMs - item.sourceStartMs) / (item.type === 'video' ? getPlaybackRate(item) : 1);
         if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
         const bounds = getAssetBounds(item, canvasWidth, canvasHeight, eventSourceWidth, eventSourceHeight);
-        return [{ ...event, timelineMs: editedTimelineMs, x: point ? bounds.left + point.x * bounds.width : bounds.left + bounds.width / 2, y: point ? bounds.top + point.y * bounds.height : bounds.top + bounds.height / 2 }];
+        const pointX = item.flipHorizontal ? 1 - (point?.x ?? 0.5) : point?.x ?? 0.5;
+        const pointY = item.flipVertical ? 1 - (point?.y ?? 0.5) : point?.y ?? 0.5;
+        return [{ ...event, timelineMs: editedTimelineMs, x: bounds.left + pointX * bounds.width, y: bounds.top + pointY * bounds.height }];
       });
 
       return clips.flatMap((recordingClip): ProjectedEvent[] => {
@@ -112,11 +114,14 @@ export function GestureOverlay({ gestureClips, interactions, clips, crop, timeli
         const editedTimelineMs = recordingClip.timelineStartMs + (event.timestampMs - recordingClip.sourceStartMs) / getPlaybackRate(recordingClip);
         if (editedTimelineMs < gestureClip.timelineStartMs || editedTimelineMs > gestureClip.timelineStartMs + duration) return [];
         const bounds = getMediaBounds(recordingClip, media, canvasWidth, canvasHeight, sourceWidth, sourceHeight);
+        const transform = getClipMediaTransform(recordingClip, media);
+        const pointX = transform.flipHorizontal ? 1 - (point?.x ?? 0.5) : point?.x ?? 0.5;
+        const pointY = transform.flipVertical ? 1 - (point?.y ?? 0.5) : point?.y ?? 0.5;
         return [{
           ...event,
           timelineMs: editedTimelineMs,
-          x: point ? bounds.left + point.x * bounds.width : bounds.left + bounds.width / 2,
-          y: point ? bounds.top + point.y * bounds.height : bounds.top + bounds.height / 2,
+          x: bounds.left + pointX * bounds.width,
+          y: bounds.top + pointY * bounds.height,
         }];
       });
     });
