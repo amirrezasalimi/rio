@@ -4,18 +4,21 @@ A local-first screen recorder and video editor for Chromium.
 
 [![Rio Demo](assets/demo.gif)](https://github.com/amirrezasalimi/rio/raw/main/assets/demo.mp4)
 
-Record a tab, window, screen, or selected page area. Edit the result on a multi-track timeline, add gesture effects and text, then export to WebM, MP4, or GIF—all in the browser.
+Record a tab, window, screen, or selected page area with optional microphone, source audio, and webcam video. Edit the result on a multi-track timeline, add gesture effects and text, then export to WebM, MP4, or GIF—all in the browser.
 
 > Rio is an early pre-release. Chromium is the current supported target.
 
 ## Highlights
 
 - **Four capture modes:** tab, window, screen, and selected page area
-- **Optional audio:** microphone and supported source audio
-- **Non-destructive timeline:** trim, split, move, duplicate, delete, gaps, and multi-select
+- **Optional webcam and audio:** record camera video, microphone audio, and supported source audio alongside the primary capture
+- **Independent webcam layer:** move, resize, trim, crop, duplicate, and style webcam footage separately in the editor
+- **Non-destructive timeline:** trim, split, move, duplicate, delete, add gaps, multi-select, and undo or redo edits
 - **Media layers:** drag and drop videos, images, and audio onto the canvas or timeline
-- **Recorded gestures:** pointer movement, clicks, double-clicks, drags, and scrolling
-- **Text clips:** installed fonts, weight, size, scale, rotation, fills, gradients, and strokes
+- **Media transforms:** aspect ratios, rectangular or circular crops, cover/contain/fill modes, content zoom, positioning, and horizontal or vertical flipping
+- **Audio editing:** decoded timeline waveforms and detachable recording audio
+- **Recorded gestures:** pointer movement, clicks, double-clicks, drags, and scrolling, synchronized with clip speed and flipping
+- **Text clips:** installed fonts, weight, size, scale, rotation, opacity, backgrounds, fills, gradients, and strokes
 - **Video speed:** `0.25×` to `4×`, synchronized with gestures and export
 - **Scene control:** project-wide playback speed adjustment
 - **Zoom effects:** manual canvas scaling and panning with timeline editing
@@ -54,7 +57,7 @@ bun run dev
 
 ## How Rio works
 
-Rio keeps the toolbar popup short-lived. Recording runs in a persistent extension context, while completed recordings and editor state are stored locally in IndexedDB.
+Rio keeps the toolbar popup short-lived. Screen and webcam recording run in a persistent extension context, while completed recordings, webcam assets, and editor state are stored locally in IndexedDB.
 
 The editor uses Remotion for preview and browser rendering. FFmpeg WASM handles GIF conversion and original-quality trimmed clip extraction.
 
@@ -70,6 +73,7 @@ Important limits:
 - Rio cannot capture interactions in browser UI, restricted pages, or unrelated tabs.
 - Area recording works on ordinary webpages, not `chrome://` pages.
 - Chrome's secure picker always controls which source is shared.
+- Webcam and microphone access are requested only when enabled and require browser permission.
 - Unsplash is the only optional external service; all project storage remains local.
 
 ## Optional Unsplash setup
@@ -108,8 +112,12 @@ WXT · React · TypeScript · Tailwind CSS v4 · Zustand · Remotion · FFmpeg W
 
 ## Status
 
-Rio is actively developed. Camera capture, interrupted-recording recovery, and full cross-browser support are not finished.
+Rio is actively developed. Interrupted-recording recovery and full cross-browser support are not finished; Chromium remains the supported target.
 
 ## License
 
-No license has been added yet.
+Rio Recorder is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+
+You may use, study, modify, and distribute the software only for permitted noncommercial purposes. You may not use Rio Recorder or a modified version to provide a commercial product or service, earn revenue, receive monetary compensation, or gain commercial advantage without a separate commercial license from the copyright holder.
+
+This is not an open-source license under the Open Source Definition. Contact the project owner for commercial licensing.
