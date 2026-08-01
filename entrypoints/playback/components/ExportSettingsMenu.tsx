@@ -38,7 +38,7 @@ export function ExportSettingsMenu({ settings, canvas, disabled, onChange }: Exp
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className={`grid size-9 place-items-center rounded-xl border transition disabled:cursor-wait disabled:opacity-50 ${open ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-surface text-muted hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700'}`}
+        className={`grid size-9 place-items-center rounded-xl border transition disabled:cursor-wait disabled:opacity-50 ${open ? 'border-selection-border bg-selection text-primary-700' : 'border-border bg-surface text-muted hover:border-primary-300 hover:bg-control-hover hover:text-primary-700'}`}
       >
         <Settings2 className="size-4" />
       </button>
@@ -57,7 +57,7 @@ export function ExportSettingsMenu({ settings, canvas, disabled, onChange }: Exp
                 {EXPORT_QUALITY_OPTIONS.map((option) => {
                   const selected = option.value === settings.quality;
                   const size = getExportDimensions(canvas, option.value);
-                  return <button key={option.value} type="button" onClick={() => onChange({ ...settings, quality: option.value })} className={`flex items-center rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}><span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold">{option.label}</span><span className="block text-[8px] text-muted">{size.width} × {size.height}</span></span>{selected && <Check className="size-3.5 shrink-0 text-primary-600" />}</button>;
+                  return <button key={option.value} type="button" onClick={() => onChange({ ...settings, quality: option.value })} className={`flex items-center rounded-xl border px-2.5 py-2 text-left transition ${selected ? 'border-selection-border bg-selection' : 'border-border bg-control hover:border-primary-200'}`}><span className="min-w-0 flex-1"><span className="block text-[10px] font-semibold">{option.label}</span><span className="block text-[9px] text-muted">{size.width} × {size.height}</span></span>{selected && <Check className="size-3.5 shrink-0 text-primary-600" />}</button>;
                 })}
               </div>
             </fieldset>
@@ -65,7 +65,7 @@ export function ExportSettingsMenu({ settings, canvas, disabled, onChange }: Exp
             <fieldset>
               <legend className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-muted">Frame rate</legend>
               <div className="grid grid-cols-4 gap-1.5">
-                {EXPORT_FPS_OPTIONS.map((fps) => <button key={fps} type="button" onClick={() => onChange({ ...settings, fps })} className={`rounded-xl border py-2 text-[10px] font-semibold transition ${settings.fps === fps ? 'border-primary-400 bg-primary-500 text-white' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{fps}<span className="ml-0.5 text-[8px] opacity-75">fps</span></button>)}
+                {EXPORT_FPS_OPTIONS.map((fps) => <button key={fps} type="button" onClick={() => onChange({ ...settings, fps })} className={`rounded-xl border py-2 text-[10px] font-semibold transition ${settings.fps === fps ? 'border-selection-border bg-primary-500 text-on-primary' : 'border-border bg-control text-muted hover:border-primary-200'}`}>{fps}<span className="ml-0.5 text-[9px] opacity-75">fps</span></button>)}
               </div>
             </fieldset>
           </div>

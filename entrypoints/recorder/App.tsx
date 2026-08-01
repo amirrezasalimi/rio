@@ -207,7 +207,7 @@ function App() {
           type="button"
           disabled={requestingCamera}
           onClick={() => requestCameraRef.current?.()}
-          className="mt-4 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-600 disabled:cursor-wait disabled:opacity-60"
+          className="mt-4 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-semibold text-on-primary hover:bg-primary-600 disabled:cursor-wait disabled:opacity-60"
         >
           {requestingCamera ? 'Requesting camera…' : permissionError ? 'Try again' : 'Enable camera'}
         </button>

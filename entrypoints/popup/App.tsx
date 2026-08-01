@@ -1,6 +1,7 @@
 import { AppWindow, Circle, Crop, FilePlus2, FolderKanban, Mic, Monitor, PanelsTopLeft, Volume2, Camera, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
+import { ThemeToggle } from '../shared/components/ThemeToggle';
 import type { CaptureMode, RecordingOptions } from '../shared/recording/types';
 import { createBlankProject } from './blankProject';
 
@@ -108,7 +109,10 @@ function App() {
       <div className="absolute -right-16 -top-20 size-44 rounded-full bg-primary-100" />
       <div className="relative flex items-center justify-between">
         <LogoMark />
-        <span className="rounded-full bg-cream-100 px-2.5 py-1 text-[10px] font-semibold text-muted">Private</span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-cream-100 px-2.5 py-1 text-[10px] font-semibold text-muted">Private</span>
+          <ThemeToggle compact />
+        </div>
       </div>
 
       <div className="relative mt-6">
@@ -159,7 +163,7 @@ function App() {
       <button
         onClick={openRecorder}
         disabled={opening}
-        className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-primary-500/20 transition hover:bg-primary-600 disabled:cursor-wait disabled:opacity-70"
+        className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-on-primary shadow-md shadow-primary-500/20 transition hover:bg-primary-600 disabled:cursor-wait disabled:opacity-70"
       >
         <Circle className="size-4 fill-current" />
         {opening ? 'Opening picker…' : 'Start recording'}
@@ -169,7 +173,7 @@ function App() {
         <button type="button" onClick={() => void openProjects()} disabled={opening} className="flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-ink transition hover:border-primary-200 hover:bg-primary-50 disabled:opacity-60"><FolderKanban className="size-4 text-primary-600" /> Manage projects</button>
       </div>
       {error && (
-        <p role="alert" className="relative mt-3 rounded-xl border border-danger/20 bg-danger/10 px-3 py-2 text-center text-xs font-medium text-danger">
+        <p role="alert" className="relative mt-3 rounded-xl border border-danger-border bg-danger-soft px-3 py-2 text-center text-xs font-medium text-danger">
           {error}
         </p>
       )}

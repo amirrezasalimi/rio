@@ -153,16 +153,16 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         ))}
       </div>
 
-      <label className="block rounded-xl border border-border bg-cream-50 p-2.5">
+      <label className="block rounded-xl border border-border bg-control p-2.5">
         <span className="mb-2 flex items-center gap-1.5 text-[10px] text-muted"><Share2 className="size-3" /> Social media preset</span>
         <select aria-label="Social media canvas preset" value={socialPresetId} onChange={(event) => { useHistoryStore.getState().record('Apply canvas preset'); applySocialPreset(event.currentTarget.value); }} className="w-full cursor-pointer rounded-lg border border-border bg-surface px-2.5 py-2 text-[10px] font-semibold text-ink outline-none transition focus:border-primary-300">
           <option value="">Custom size</option>
           {SOCIAL_PLATFORMS.map((platform) => <optgroup key={platform} label={platform}>{SOCIAL_PRESETS.filter((preset) => preset.platform === platform).map((preset) => <option key={preset.id} value={preset.id}>{preset.label} — {preset.width} × {preset.height}</option>)}</optgroup>)}
         </select>
-        <span className="mt-1.5 block text-[8px] leading-relaxed text-muted">Choose a ready-to-publish canvas, then fine-tune it below if needed.</span>
+        <span className="mt-1.5 block text-[9px] leading-relaxed text-muted">Choose a ready-to-publish canvas, then fine-tune it below if needed.</span>
       </label>
 
-      <div className="rounded-xl border border-border bg-cream-50 p-2.5">
+      <div className="rounded-xl border border-border bg-control p-2.5">
         <div className="mb-2 flex items-center justify-between text-[10px]">
           <span className="flex items-center gap-1.5 text-muted">
             <Maximize2 className="size-3" /> Canvas size
@@ -188,7 +188,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
           <button type="button" onClick={() => { useHistoryStore.getState().record('Set canvas size'); applySize(); }} className="rounded-lg bg-ink px-2 py-1.5 text-[9px] font-semibold text-white">Set</button>
         </div>
       </div>
-      <div className="rounded-xl border border-border bg-cream-50 p-2.5">
+      <div className="rounded-xl border border-border bg-control p-2.5">
         <div className="mb-2 flex items-center justify-between text-[10px]">
           <span className="flex items-center gap-1.5 text-muted">
             <Gauge className="size-3" /> Scene speed
@@ -209,7 +209,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
               onClick={() => { useHistoryStore.getState().record('Change playback speed'); setSceneSpeed(rate); }}
               className={`rounded-lg border py-1.5 font-mono text-[9px] font-semibold transition ${
                 sceneSpeed === rate
-                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  ? 'border-selection-border bg-selection text-primary-700'
                   : 'border-border bg-surface text-muted hover:border-primary-200'
               }`}
             >
@@ -227,7 +227,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
           suffix="×"
           onChange={setSceneSpeed}
         />
-        <p className="mt-2 text-[8px] leading-relaxed text-muted">
+        <p className="mt-2 text-[9px] leading-relaxed text-muted">
           Speed up or slow down the entire video. Changes preview playback rate and exported video speed.
         </p>
       </div>
@@ -239,7 +239,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
       {(!isUploadedMedia || selectedUpload.type !== 'audio') && (
         <>
           {isUploadedMedia && selectedUpload.type !== 'audio' && (
-            <div className="space-y-2 rounded-xl border border-border bg-cream-50 p-2.5">
+            <div className="space-y-2 rounded-xl border border-border bg-control p-2.5">
               <div>
                 <p className="mb-1.5 text-[9px] font-semibold text-muted">Clip ratio</p>
                 <div className="grid grid-cols-5 gap-1">
@@ -251,9 +251,9 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
                         useHistoryStore.getState().record('Change media ratio');
                         updateTimelineMediaItem(selectedUpload.id, { aspectRatio: ratio.value });
                       }}
-                      className={`rounded-lg border px-1 py-1.5 text-[8px] font-semibold transition ${
+                      className={`rounded-lg border px-1 py-1.5 text-[9px] font-semibold transition ${
                         (selectedUpload.aspectRatio ?? 'source') === ratio.value
-                          ? 'border-primary-400 bg-primary-50 text-primary-700'
+                          ? 'border-selection-border bg-selection text-primary-700'
                           : 'border-border bg-surface text-muted hover:border-primary-200'
                       }`}
                     >
@@ -278,7 +278,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
                       }}
                       className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
                         (selectedUpload.cropShape ?? 'rectangle') === shape
-                          ? 'border-primary-400 bg-primary-50 text-primary-700'
+                          ? 'border-selection-border bg-selection text-primary-700'
                           : 'border-border bg-surface text-muted hover:border-primary-200'
                       }`}
                     >
@@ -301,7 +301,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
                   }}
                   className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
                     (selectedUpload.contentFit ?? 'cover') === fit
-                      ? 'border-primary-400 bg-primary-50 text-primary-700'
+                      ? 'border-selection-border bg-selection text-primary-700'
                       : 'border-border bg-surface text-muted hover:border-primary-200'
                   }`}
                 >
@@ -328,7 +328,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
               }}
               className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-[9px] font-semibold transition ${
                 transform.flipHorizontal
-                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  ? 'border-selection-border bg-selection text-primary-700'
                   : 'border-border bg-surface text-muted hover:border-primary-200'
               }`}
             >
@@ -343,7 +343,7 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
               }}
               className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-[9px] font-semibold transition ${
                 transform.flipVertical
-                  ? 'border-primary-400 bg-primary-50 text-primary-700'
+                  ? 'border-selection-border bg-selection text-primary-700'
                   : 'border-border bg-surface text-muted hover:border-primary-200'
               }`}
             >
@@ -367,15 +367,15 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         const durationMs = getTimelineItemDurationMs(selectedUpload);
         const maxFadeMs = Math.max(0, Math.floor(durationMs / 2));
         return (
-          <div className="space-y-3 rounded-xl border border-border bg-cream-50 p-2.5">
+          <div className="space-y-3 rounded-xl border border-border bg-control p-2.5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold text-ink">Audio fades</p>
-                <p className="mt-0.5 text-[8px] leading-relaxed text-muted">Set either fade to 0 to disable it.</p>
+                <p className="mt-0.5 text-[9px] leading-relaxed text-muted">Set either fade to 0 to disable it.</p>
               </div>
               <div className="flex shrink-0 rounded-lg border border-border bg-surface p-0.5" aria-label="Audio fade slider unit">
-                <button type="button" aria-pressed={audioFadeUnit === 'time'} onClick={() => setAudioFadeUnit('time')} className={`rounded-md px-2 py-1 text-[8px] font-semibold transition ${audioFadeUnit === 'time' ? 'bg-primary-100 text-primary-800' : 'text-muted hover:text-ink'}`}>Time</button>
-                <button type="button" aria-pressed={audioFadeUnit === 'percent'} onClick={() => setAudioFadeUnit('percent')} className={`rounded-md px-2 py-1 text-[8px] font-semibold transition ${audioFadeUnit === 'percent' ? 'bg-primary-100 text-primary-800' : 'text-muted hover:text-ink'}`}>%</button>
+                <button type="button" aria-pressed={audioFadeUnit === 'time'} onClick={() => setAudioFadeUnit('time')} className={`rounded-md px-2 py-1 text-[9px] font-semibold transition ${audioFadeUnit === 'time' ? 'bg-primary-100 text-primary-800' : 'text-muted hover:text-ink'}`}>Time</button>
+                <button type="button" aria-pressed={audioFadeUnit === 'percent'} onClick={() => setAudioFadeUnit('percent')} className={`rounded-md px-2 py-1 text-[9px] font-semibold transition ${audioFadeUnit === 'percent' ? 'bg-primary-100 text-primary-800' : 'text-muted hover:text-ink'}`}>%</button>
               </div>
             </div>
             {audioFadeUnit === 'time' ? <>
@@ -389,10 +389,10 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         );
       })()}
       {isUploadedMedia && selectedUpload.type === 'video' && (
-        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-cream-50 p-2.5 transition hover:border-primary-200">
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-control p-2.5 transition hover:border-primary-200">
           <span className="flex min-w-0 items-center gap-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-700"><Snowflake className="size-3.5" /></span>
-            <span><span className="block text-[10px] font-semibold text-ink">Hold last frame</span><span className="block text-[8px] leading-relaxed text-muted">Keep the final frame visible after this clip ends.</span></span>
+            <span><span className="block text-[10px] font-semibold text-ink">Hold last frame</span><span className="block text-[9px] leading-relaxed text-muted">Keep the final frame visible after this clip ends.</span></span>
           </span>
           <input type="checkbox" checked={selectedUpload.holdLastFrame} onChange={(event) => { useHistoryStore.getState().record('Toggle hold last frame'); updateTimelineMediaItem(selectedUpload.id, { holdLastFrame: event.currentTarget.checked }); }} className="peer sr-only" />
           <span className="relative h-5 w-9 shrink-0 rounded-full bg-border transition peer-checked:bg-primary-500 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-4" />
@@ -400,8 +400,8 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
       )}
 
       <div className={`grid gap-1.5 ${isUploadedMedia && selectedUpload.type === 'audio' ? 'grid-cols-1' : 'grid-cols-2'}`}>
-        {(!isUploadedMedia || selectedUpload.type !== 'audio') && <button type="button" onClick={() => { useHistoryStore.getState().record('Center media'); updateTransform({ positionX: 50, positionY: 50 }); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"><Crosshair className="size-3" /> Center</button>}
-        <button type="button" onClick={() => { useHistoryStore.getState().record('Reset clip transform'); resetTransform(); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-primary-50"> <RotateCcw className="size-3" /> {isUploadedMedia && selectedUpload.type === 'audio' ? 'Reset audio' : 'Reset transform'}</button>
+        {(!isUploadedMedia || selectedUpload.type !== 'audio') && <button type="button" onClick={() => { useHistoryStore.getState().record('Center media'); updateTransform({ positionX: 50, positionY: 50 }); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-control-hover"><Crosshair className="size-3" /> Center</button>}
+        <button type="button" onClick={() => { useHistoryStore.getState().record('Reset clip transform'); resetTransform(); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-border py-2 text-[10px] font-semibold hover:border-primary-300 hover:bg-control-hover"> <RotateCcw className="size-3" /> {isUploadedMedia && selectedUpload.type === 'audio' ? 'Reset audio' : 'Reset transform'}</button>
       </div>
       <p className="text-[9px] leading-relaxed text-muted">
         {isUploadedMedia

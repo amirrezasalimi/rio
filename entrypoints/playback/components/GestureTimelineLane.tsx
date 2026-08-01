@@ -85,20 +85,20 @@ export function GestureTimelineLane({ editedRecordingDurationMs, timelineDuratio
   if (clips.length === 0) return null;
 
   return (
-    <div ref={trackRef} className="relative h-12 shrink-0 border-t border-border/70 bg-primary-50/45">
+    <div ref={trackRef} className="relative h-12 shrink-0 border-t border-border/70 bg-surface/60">
         {clips.map((clip, index) => {
           const selected = selectedItems.some((item) => item.kind === 'gesture' && item.id === clip.id);
           const duration = getGestureClipDurationMs(clip);
           const timelineEndMs = clip.timelineStartMs + duration;
           return (
             <div key={clip.id} data-clip className="absolute bottom-1 top-1 min-w-14 touch-none" style={{ left: `${clip.timelineStartMs / timelineDurationMs * 100}%`, width: `${duration / timelineDurationMs * 100}%` }}>
-              <div role="button" tabIndex={0} aria-label={`Gesture effects clip from ${formatTime(clip.timelineStartMs)} to ${formatTime(timelineEndMs)}`} onPointerDown={(event) => startDrag(event, index, 'clip')} onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'gesture', id: clip.id }, event.shiftKey); }} className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border-2 bg-[linear-gradient(135deg,var(--color-primary-700),var(--color-accent-500))] text-white active:cursor-grabbing ${selected ? 'border-white ring-2 ring-primary-500/30' : 'border-primary-300'}`}>
-                <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(circle,white_1px,transparent_1.5px)] [background-size:12px_12px]" />
-                <span className="pointer-events-none absolute left-6 right-6 top-0.5 flex items-center justify-center gap-1 truncate text-[8px] font-semibold"><MousePointerClick className="size-3 shrink-0" /> Gesture effects</span>
-                <span className="pointer-events-none absolute bottom-0.5 left-6 right-6 flex justify-between gap-1 overflow-hidden text-[7px] font-semibold tabular-nums text-white/90"><span>{formatTime(clip.timelineStartMs)}</span><span>{formatTime(timelineEndMs)}</span></span>
+              <div role="button" tabIndex={0} aria-label={`Gesture effects clip from ${formatTime(clip.timelineStartMs)} to ${formatTime(timelineEndMs)}`} onPointerDown={(event) => startDrag(event, index, 'clip')} onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'gesture', id: clip.id }, event.shiftKey); }} className={`rio-timeline-gesture absolute inset-0 cursor-grab overflow-hidden rounded-lg border text-white active:cursor-grabbing ${selected ? 'border-selection-border ring-1 ring-selection-border/35' : 'border-border'}`}>
+                <div className="rio-timeline-pattern pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle,white_1px,transparent_1.5px)] [background-size:12px_12px]" />
+                <span className="pointer-events-none absolute left-6 right-6 top-0.5 flex items-center justify-center gap-1 truncate text-[9px] font-semibold"><MousePointerClick className="size-3 shrink-0" /> Gesture effects</span>
+                <span className="pointer-events-none absolute bottom-0.5 left-6 right-6 flex justify-between gap-1 overflow-hidden text-[9px] font-semibold tabular-nums text-white/90"><span>{formatTime(clip.timelineStartMs)}</span><span>{formatTime(timelineEndMs)}</span></span>
               </div>
-              <button type="button" aria-label="Trim start of gesture effects" onPointerDown={(event) => startDrag(event, index, 'start')} className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-l-lg bg-ink/75 text-white"><GripVertical className="size-3" /></button>
-              <button type="button" aria-label="Trim end of gesture effects" onPointerDown={(event) => startDrag(event, index, 'end')} className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-r-lg bg-ink/75 text-white"><GripVertical className="size-3" /></button>
+              <button type="button" aria-label="Trim start of gesture effects" onPointerDown={(event) => startDrag(event, index, 'start')} className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-l-lg bg-[var(--color-timeline-handle)] text-white"><GripVertical className="size-3" /></button>
+              <button type="button" aria-label="Trim end of gesture effects" onPointerDown={(event) => startDrag(event, index, 'end')} className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-r-lg bg-[var(--color-timeline-handle)] text-white"><GripVertical className="size-3" /></button>
               <ClipContextMenu label="Gesture effects" onOpen={() => setSelection({ kind: 'gesture', id: clip.id })} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
             </div>
           );

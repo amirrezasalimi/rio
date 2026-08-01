@@ -5,11 +5,17 @@ import { embedGestureMetadata } from '../playback/editor/gestureMetadata';
 
 const CORE_URL = new URL('/ffmpeg/ffmpeg-core.js', window.location.href).href;
 const WASM_URL = new URL('/ffmpeg/ffmpeg-core.wasm', window.location.href).href;
+const savedTheme = localStorage.getItem('rio.color-theme');
+const dark = savedTheme === 'dark' || (savedTheme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+const colors = dark
+  ? { canvas: '#080808', ink: '#f1f1f1', muted: '#a1a1a1', danger: '#f08b98', action: '#2072bf' }
+  : { canvas: '#fffaf0', ink: '#18324a', muted: '#61758a', danger: '#c44555', action: '#328fdf' };
 
-document.body.style.cssText = 'margin:0;font-family:system-ui;background:#fffaf0;color:#18324a';
+document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+document.body.style.cssText = `margin:0;font-family:system-ui;background:${colors.canvas};color:${colors.ink}`;
 const status = document.createElement('main');
 status.style.cssText = 'min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;text-align:center';
-status.innerHTML = '<div><h1 style="font-size:18px;margin:0 0 8px">Preparing original-quality clip…</h1><p style="font-size:13px;color:#65788a;margin:0">Keep this tab open while Rio extracts the selected range.</p></div>';
+status.innerHTML = `<div><h1 style="font-size:18px;margin:0 0 8px">Preparing original-quality clip…</h1><p style="font-size:13px;color:${colors.muted};margin:0">Keep this tab open while Rio extracts the selected range.</p></div>`;
 document.body.append(status);
 
 function showDownload(blob: Blob, filename: string) {
@@ -21,12 +27,12 @@ function showDownload(blob: Blob, filename: string) {
   heading.style.cssText = 'font-size:20px;margin:0 0 8px';
   const detail = document.createElement('p');
   detail.textContent = 'The original encoded quality and Rio gesture metadata are preserved.';
-  detail.style.cssText = 'font-size:13px;color:#65788a;margin:0 0 20px';
+  detail.style.cssText = `font-size:13px;color:${colors.muted};margin:0 0 20px`;
   const button = document.createElement('a');
   button.href = url;
   button.download = filename;
   button.textContent = 'Download clip';
-  button.style.cssText = 'display:inline-block;border-radius:12px;background:#328fdf;color:white;padding:11px 18px;font-size:13px;font-weight:700;text-decoration:none';
+  button.style.cssText = `display:inline-block;border-radius:12px;background:${colors.action};color:white;padding:11px 18px;font-size:13px;font-weight:700;text-decoration:none`;
   button.addEventListener('click', () => window.setTimeout(() => { URL.revokeObjectURL(url); window.close(); }, 5_000), { once: true });
   panel.append(heading, detail, button);
   status.append(panel);
@@ -65,5 +71,5 @@ async function prepareClip() {
 }
 
 void prepareClip().catch((error: unknown) => {
-  status.innerHTML = `<div><h1 style="font-size:18px;margin:0 0 8px;color:#b42318">Could not prepare this clip</h1><p style="font-size:13px;color:#65788a;margin:0">${error instanceof Error ? error.message : 'Unknown processing error.'}</p></div>`;
+  status.innerHTML = `<div><h1 style="font-size:18px;margin:0 0 8px;color:${colors.danger}">Could not prepare this clip</h1><p style="font-size:13px;color:${colors.muted};margin:0">${error instanceof Error ? error.message : 'Unknown processing error.'}</p></div>`;
 });

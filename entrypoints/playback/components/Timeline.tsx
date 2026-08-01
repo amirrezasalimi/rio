@@ -519,9 +519,9 @@ export function Timeline({
           />
           <TimelineMaxTimeInput valueSeconds={Math.ceil(projectDurationMs / 1_000)} minimumSeconds={Math.max(1, Math.ceil(contentDurationMs / 1_000))} onCommit={(seconds) => setTimelineLimitMs(Math.max(contentDurationMs, 1_000, seconds * 1_000))} />
           <TimelineZoomControls zoom={zoom} min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} onChange={setSafeZoom} />
-          <button type="button" aria-pressed={preciseRuler} title="Show timeline marks every 0.5 seconds" onClick={() => setPreciseRuler((current) => { localStorage.setItem('rio.timeline.precise-ruler', String(!current)); return !current; })} className={`rounded-xl border px-2.5 py-2 text-[9px] font-semibold transition ${preciseRuler ? 'border-primary-300 bg-primary-100 text-primary-800' : 'border-border bg-cream-50 text-muted hover:bg-surface'}`}>0.5s ticks</button>
+          <button type="button" aria-pressed={preciseRuler} title="Show timeline marks every 0.5 seconds" onClick={() => setPreciseRuler((current) => { localStorage.setItem('rio.timeline.precise-ruler', String(!current)); return !current; })} className={`rounded-xl border px-2.5 py-2 text-[9px] font-semibold transition ${preciseRuler ? 'border-primary-300 bg-primary-100 text-primary-800' : 'border-border bg-control text-muted hover:bg-surface'}`}>0.5s ticks</button>
 
-          <div className="flex items-center rounded-xl border border-border bg-cream-50 p-1">
+          <div className="flex items-center rounded-xl border border-border bg-control p-1">
             <button
               type="button"
               onClick={split}
@@ -579,7 +579,7 @@ export function Timeline({
               left: `${Math.min(100, (currentTimeMs / timelineDurationMs) * 100)}%`,
             }}
           >
-            <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent-500 shadow-[0_0_0_1px_rgba(255,255,255,.85)]" />
+            <span className="rio-timeline-playhead absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[var(--color-timeline-playhead)]" />
           </div>
           {clips.length > 0 && <div
             ref={trackRef}
@@ -603,23 +603,21 @@ export function Timeline({
                   aria-label={`Clip ${index + 1}`}
                   onPointerDown={(event) => startDrag(event, index, 'clip')}
                   onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'recording', id: clip.id }, event.shiftKey); }}
-                  className={`group absolute bottom-1.5 top-1.5 max-h-[62px] min-w-14 cursor-grab touch-none rounded-lg border-2 text-left transition active:cursor-grabbing ${
+                  className={`rio-timeline-recording group absolute bottom-1.5 top-1.5 max-h-[62px] min-w-14 cursor-grab touch-none rounded-lg border text-left transition active:cursor-grabbing ${
                     selected
-                      ? 'border-primary-600 shadow-[0_0_0_2px_rgba(50,143,223,.18)]'
-                      : 'border-primary-200 hover:border-primary-400'
+                      ? 'border-selection-border ring-1 ring-selection-border/35'
+                      : 'border-border hover:border-selection-border'
                   }`}
                   style={{
                     left: `${(clip.timelineStartMs / timelineDurationMs) * 100}%`,
                     width: `${(clipDuration / timelineDurationMs) * 100}%`,
-                    background:
-                      'linear-gradient(145deg, var(--color-primary-100), var(--color-primary-300))',
                   }}
                 >
-                  <div className="absolute inset-0 overflow-hidden rounded-md opacity-40 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_17px,rgba(255,255,255,.9)_18px)]" />
+                  <div className="rio-timeline-pattern absolute inset-0 overflow-hidden rounded-md opacity-20 [background-image:repeating-linear-gradient(90deg,transparent_0,transparent_17px,rgba(255,255,255,.7)_18px)]" />
                   <button
                     type="button"
                     aria-label={`Trim start of clip ${index + 1}`}
-                    className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize touch-none items-center justify-center bg-primary-600 text-white opacity-80 transition hover:opacity-100 focus:opacity-100"
+                    className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize touch-none items-center justify-center bg-[var(--color-timeline-handle)] text-white opacity-80 transition hover:opacity-100 focus:opacity-100"
                     onPointerDown={(event) => startDrag(event, index, 'start')}
                   >
                     <GripVertical className="size-3" />
@@ -627,16 +625,16 @@ export function Timeline({
                   <button
                     type="button"
                     aria-label={`Trim end of clip ${index + 1}`}
-                    className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize touch-none items-center justify-center bg-primary-600 text-white opacity-80 transition hover:opacity-100 focus:opacity-100"
+                    className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize touch-none items-center justify-center bg-[var(--color-timeline-handle)] text-white opacity-80 transition hover:opacity-100 focus:opacity-100"
                     onPointerDown={(event) => startDrag(event, index, 'end')}
                   >
                     <GripVertical className="size-3" />
                   </button>
-                  <span className="pointer-events-none absolute left-6 top-2 rounded bg-ink/72 px-1.5 py-0.5 font-mono text-[8px] text-white">
+                  <span className="pointer-events-none absolute left-6 top-2 rounded bg-overlay/72 px-1.5 py-0.5 font-mono text-[9px] text-white">
                     Clip {index + 1}
                   </span>
                   {hasAudio && !audioDetached && <AudioWaveform src={recordingUrl} sourceStartMs={clip.sourceStartMs} sourceEndMs={clip.sourceEndMs} sourceDurationMs={sourceDurationMs} volume={clip.volume} className="left-0 bottom-0 h-5 text-primary-950" />}
-                  <span className="pointer-events-none absolute bottom-1.5 left-6 z-10 rounded bg-primary-50/75 px-1 font-mono text-[8px] font-semibold text-primary-950 backdrop-blur-[1px]">
+                  <span className="pointer-events-none absolute bottom-1.5 left-6 z-10 rounded bg-selection/75 px-1 font-mono text-[9px] font-semibold text-primary-950 backdrop-blur-[1px]">
                     {timeLabel(clipDuration)} · {getPlaybackRate(clip)}×
                   </span>
                   <ClipContextMenu label={`Clip ${index + 1}`} onOpen={() => setSelection({ kind: 'recording', id: clip.id })} onDownload={() => onDownloadClip(clip)} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} onSplitAudio={hasAudio && !audioDetached ? splitSelectedTimelineItemAudio : undefined} />

@@ -65,6 +65,7 @@ function LightBox({ x, y, onChange }: { x: number; y: number; onChange: (x: numb
   );
 }
 
+import { RIO_BORDER_COLOR_PRESETS } from '../editor/designPresets';
 import { useHistoryStore } from '../editor/history';
 
 export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolean }) {
@@ -152,7 +153,7 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-frame`} icon={Frame} title="Frame" summary={FRAME_STYLES.find((style) => style.value === visual.frameStyle)?.label} defaultOpen>
         <div className="grid grid-cols-2 gap-1.5">
           {FRAME_STYLES.map((style) => (
-            <button key={style.value} type="button" onClick={() => { useHistoryStore.getState().record('Change frame style'); updateVisual({ frameStyle: style.value }); }} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-primary-400 bg-primary-50' : 'border-border bg-cream-50 hover:border-primary-200'}`}>
+            <button key={style.value} type="button" aria-pressed={visual.frameStyle === style.value} onClick={() => { useHistoryStore.getState().record('Change frame style'); updateVisual({ frameStyle: style.value }); }} className={`rounded-xl border p-1.5 text-left transition ${visual.frameStyle === style.value ? 'border-selection-border bg-selection' : 'border-border bg-control hover:border-primary-200'}`}>
               <span className="relative block h-10 rounded-lg bg-[linear-gradient(135deg,var(--color-cream-200),var(--color-primary-200))]"><span className="absolute inset-2 rounded-md" style={framePreview(style.value)} /></span>
               <span className="mt-1 flex items-center justify-between px-0.5 text-[9px] font-semibold text-muted">{style.label}{visual.frameStyle === style.value && <Check className="size-3 text-primary-600" />}</span>
             </button>
@@ -163,7 +164,7 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-border`} icon={Shapes} title="Border" summary={`${visual.borderShape} · ${visual.borderWidth}px stroke`}>
         <div className="grid grid-cols-3 gap-1.5">
           {shapes.map((shape) => (
-            <button key={shape} type="button" onClick={() => { useHistoryStore.getState().record('Change border shape'); updateVisual({ borderShape: shape }); }} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
+            <button key={shape} type="button" aria-pressed={visual.borderShape === shape} onClick={() => { useHistoryStore.getState().record('Change border shape'); updateVisual({ borderShape: shape }); }} className={`rounded-xl border p-1.5 ${visual.borderShape === shape ? 'border-selection-border bg-selection' : 'border-border'}`}>
               <span className="mx-auto block h-9 w-12 bg-primary-300" style={{ borderRadius: shape === 'sharp' ? 0 : shape === 'rounded' ? 10 : '42% 42% 36% 36% / 52% 52% 34% 34%' }} />
               <span className="mt-1 block text-[9px] font-semibold capitalize text-muted">{shape}</span>
             </button>
@@ -176,15 +177,15 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
           <label className="block text-[10px] text-muted">Color<input aria-label="Border color" type="color" value={visual.borderColor} onChange={(event) => updateVisual({ borderColor: event.target.value })} onBlur={() => useHistoryStore.getState().record('Change border color')} className="mt-1 block size-8 cursor-pointer rounded-lg border-0 bg-transparent" /></label>
         </div>
         <EditorRange className="mt-3" label="Border opacity" value={visual.borderOpacity} min={0} max={100} suffix="%" onChange={(borderOpacity) => updateVisual({ borderOpacity })} />
-        <div className="mt-2 flex gap-1.5">{['#ffffff', '#328fdf', '#ed674e', '#18324a'].map((color) => <button key={color} type="button" aria-label={`Border color ${color}`} onClick={() => { useHistoryStore.getState().record('Change border color'); updateVisual({ borderColor: color }); }} className="size-6 rounded-full border-2 border-white shadow-sm" style={{ background: color }} />)}</div>
+        <div className="mt-2 flex gap-1.5">{RIO_BORDER_COLOR_PRESETS.map((color) => <button key={color} type="button" aria-label={`Border color ${color}`} onClick={() => { useHistoryStore.getState().record('Change border color'); updateVisual({ borderColor: color }); }} className="size-6 rounded-full border-2 border-white shadow-sm" style={{ background: color }} />)}</div>
       </InspectorSection>}
 
       {!selectedGesture && !selectedText && !selectedZoom && supportsVisualSettings && <InspectorSection key={`${selectionKey}-shadow`} icon={Sparkles} title="Shadow" summary={`${visual.shadowStyle} · ${visual.shadowOpacity}% opacity`}>
         <div className="grid grid-cols-4 gap-1.5">
           {shadows.map((shadow) => (
-            <button key={shadow} type="button" onClick={() => { useHistoryStore.getState().record('Change shadow style'); updateVisual({ shadowStyle: shadow }); }} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-primary-400 bg-primary-50' : 'border-border'}`}>
+            <button key={shadow} type="button" aria-pressed={visual.shadowStyle === shadow} onClick={() => { useHistoryStore.getState().record('Change shadow style'); updateVisual({ shadowStyle: shadow }); }} className={`rounded-xl border px-1 py-2 ${visual.shadowStyle === shadow ? 'border-selection-border bg-selection' : 'border-border'}`}>
               <span className="mx-auto block size-7 rounded-lg bg-surface" style={{ boxShadow: shadow === 'none' ? 'none' : shadow === 'spread' ? '0 5px 8px 3px rgba(24,50,74,.2)' : shadow === 'huge' ? '0 8px 14px rgba(24,50,74,.32)' : '5px 6px 10px rgba(50,143,223,.35)' }} />
-              <span className="mt-1.5 block truncate text-[8px] font-semibold capitalize text-muted">{shadow}</span>
+              <span className="mt-1.5 block truncate text-[9px] font-semibold capitalize text-muted">{shadow}</span>
             </button>
           ))}
         </div>
@@ -193,7 +194,7 @@ export function EditorSidebar({ hasRecordingAudio }: { hasRecordingAudio: boolea
       </InspectorSection>}
 
       {speedItem && <InspectorSection key={`${selectionKey}-speed`} icon={Gauge} title="Playback speed" summary={`${playbackRate}×`}>
-        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => { useHistoryStore.getState().record('Change playback speed'); updatePlaybackRate(rate); }} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-primary-400 bg-primary-50 text-primary-700' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
+        <div className="grid grid-cols-5 gap-1">{[0.5, 0.75, 1, 1.5, 2].map((rate) => <button key={rate} type="button" onClick={() => { useHistoryStore.getState().record('Change playback speed'); updatePlaybackRate(rate); }} className={`rounded-lg border px-1 py-2 font-mono text-[9px] font-semibold transition ${playbackRate === rate ? 'border-selection-border bg-selection text-primary-700' : 'border-border bg-control text-muted hover:border-primary-200'}`}>{rate}×</button>)}</div>
         <EditorRange className="mt-3" label="Custom speed" value={playbackRate} min={0.25} max={4} step={0.05} suffix="×" onChange={updatePlaybackRate} />
         <p className="mt-2 text-[9px] leading-relaxed text-muted">Higher speed shortens the clip on the timeline. Source trimming remains non-destructive.</p>
       </InspectorSection>}

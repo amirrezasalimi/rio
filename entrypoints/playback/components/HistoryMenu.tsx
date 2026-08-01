@@ -20,7 +20,7 @@ export function HistoryMenu() {
           disabled={!canUndo}
           onClick={undo}
           title={`Undo${past.length > 0 ? ` ${past[past.length - 1].label}` : ''} (Cmd/Ctrl+Z)`}
-          className="flex items-center justify-center rounded-l-md px-2 py-1.5 text-ink hover:bg-cream-100 disabled:opacity-30"
+          className="flex items-center justify-center rounded-l-md px-2 py-1.5 text-ink hover:bg-control-hover disabled:opacity-30"
         >
           <Undo2 className="size-3.5" />
         </button>
@@ -30,7 +30,7 @@ export function HistoryMenu() {
           disabled={!canRedo}
           onClick={redo}
           title={`Redo${future.length > 0 ? ` ${future[0].label}` : ''} (Cmd/Ctrl+Shift+Z)`}
-          className="flex items-center justify-center px-2 py-1.5 text-ink hover:bg-cream-100 disabled:opacity-30"
+          className="flex items-center justify-center px-2 py-1.5 text-ink hover:bg-control-hover disabled:opacity-30"
         >
           <Redo2 className="size-3.5" />
         </button>
@@ -39,7 +39,7 @@ export function HistoryMenu() {
           type="button"
           onClick={() => setOpen(!open)}
           title="History"
-          className={`flex items-center justify-center rounded-r-md px-2 py-1.5 hover:bg-cream-100 ${open ? 'bg-cream-100 text-primary-600' : 'text-ink'}`}
+          className={`flex items-center justify-center rounded-r-md px-2 py-1.5 hover:bg-control-hover ${open ? 'bg-cream-100 text-primary-600' : 'text-ink'}`}
         >
           <History className="size-3.5" />
         </button>
@@ -61,13 +61,13 @@ export function HistoryMenu() {
                     jumpToHistory(future.length - 1 - index, 'future');
                     setOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] text-muted hover:bg-cream-100"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] text-muted hover:bg-control-hover"
                 >
                   <span className="truncate">{entry.label}</span>
                 </button>
               ))}
               
-              <div className="flex w-full items-center gap-2 rounded-lg bg-primary-50 px-2 py-1.5 text-left text-[10px] font-semibold text-primary-700">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-selection px-2 py-1.5 text-left text-[10px] font-semibold text-primary-700">
                 <span className="truncate">Current state</span>
               </div>
 
@@ -79,7 +79,7 @@ export function HistoryMenu() {
                     jumpToHistory(past.length - 1 - index, 'past');
                     setOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] text-muted hover:bg-cream-100"
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] text-muted hover:bg-control-hover"
                 >
                   <span className="truncate">{entry.label}</span>
                 </button>

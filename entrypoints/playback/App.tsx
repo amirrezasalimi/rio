@@ -2,6 +2,7 @@ import { Player, type PlayerRef } from '@remotion/player';
 import { AlertCircle, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LogoMark } from '../shared/components/LogoMark';
+import { ThemeToggle } from '../shared/components/ThemeToggle';
 import { formatDuration } from '../shared/recording/media'; import { deleteEditorAsset, deleteRecordingProject, getEditorAssets, getEditorProject, getRecording, getRecordings, saveEditorAsset, saveEditorProject, type StoredEditorAsset, type StoredRecording } from '../shared/recording/storage';
 import { EditorSidebar } from './components/EditorSidebar'; import { ExportMenu } from './components/ExportMenu'; import { ExportSettingsMenu } from './components/ExportSettingsMenu';
 import { FileMenu } from './components/FileMenu';
@@ -542,7 +543,7 @@ function App() {
   };
 
   if (error && !recording) {
-    return <main className="grid min-h-screen place-items-center bg-canvas p-6"><div role="alert" className="max-w-md rounded-2xl border border-accent-200 bg-accent-50 p-5 text-danger">{error}</div></main>;
+    return <main className="grid min-h-screen place-items-center bg-canvas p-6"><div role="alert" className="max-w-md rounded-2xl border border-danger-border bg-danger-soft p-5 text-danger">{error}</div></main>;
   }
 
   return (
@@ -556,12 +557,13 @@ function App() {
           <div className="hidden sm:block"><p className="text-xs font-semibold">Recording complete</p><p className="text-[10px] text-muted">{recording ? formatDuration(recording.durationMs) : 'Loading…'}</p></div>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle compact />
           <ExportSettingsMenu settings={exportSettings} canvas={settings.canvas} disabled={exporting} onChange={setExportSettings} />
           <ExportMenu format={format} busy={exporting} progress={progress} onFormatChange={setFormat} onExport={runExport} />
         </div>
       </header>
-      {error && <div role="alert" className="flex items-center gap-2 border-b border-accent-200 bg-accent-50 px-4 py-2 text-xs text-danger"><AlertCircle className="size-4" />{error}</div>}
-      {notice && <div className="flex items-center gap-2 border-b border-primary-200 bg-primary-50 px-4 py-2 text-xs text-primary-800"><CheckCircle2 className="size-4" />{notice}</div>}
+      {error && <div role="alert" className="flex items-center gap-2 border-b border-danger-border bg-danger-soft px-4 py-2 text-xs text-danger"><AlertCircle className="size-4" />{error}</div>}
+      {notice && <div className="flex items-center gap-2 border-b border-success-border bg-success-soft px-4 py-2 text-xs text-success"><CheckCircle2 className="size-4" />{notice}</div>}
       <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)]">
         <EditorSidebar hasRecordingAudio={Boolean(recording && recording.hasAudio !== false)} />
         <div className="flex min-h-0 flex-col">

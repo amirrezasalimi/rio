@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../shared/styles/globals.css';
+import { initializeTheme } from '../shared/store/theme';
+
+initializeTheme();
 
 const previewStyles = `
   html, body, #root { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }

@@ -73,16 +73,16 @@ export function TextTimelineLane({ timelineDurationMs, onDragStateChange }: { ti
   if (clips.length === 0) return null;
 
   return (
-    <div ref={trackRef} className="relative h-12 shrink-0 border-t border-border/70 bg-accent-50/45">
+    <div ref={trackRef} className="relative h-12 shrink-0 border-t border-border/70 bg-surface/60">
       {clips.map((clip, index) => {
         const selected = selectedItems.some((item) => item.kind === 'text' && item.id === clip.id);
         return (
           <div key={clip.id} data-clip className="absolute bottom-1 top-1 min-w-14 touch-none" style={{ left: `${clip.timelineStartMs / timelineDurationMs * 100}%`, width: `${clip.durationMs / timelineDurationMs * 100}%` }}>
-            <div role="button" tabIndex={0} aria-label={`Text clip: ${clip.text}`} onPointerDown={(event) => startDrag(event, index, 'clip')} onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'text', id: clip.id }, event.shiftKey); }} className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border-2 bg-[linear-gradient(135deg,var(--color-accent-500),var(--color-accent-300))] text-white active:cursor-grabbing ${selected ? 'border-white ring-2 ring-accent-500/30' : 'border-accent-200'}`}>
-              <span className="pointer-events-none absolute inset-y-0 left-6 right-6 flex items-center gap-1.5 truncate text-[8px] font-semibold"><Type className="size-3.5 shrink-0" /> {clip.text || 'Text'}</span>
+            <div role="button" tabIndex={0} aria-label={`Text clip: ${clip.text}`} onPointerDown={(event) => startDrag(event, index, 'clip')} onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'text', id: clip.id }, event.shiftKey); }} className={`rio-timeline-text absolute inset-0 cursor-grab overflow-hidden rounded-lg border text-white active:cursor-grabbing ${selected ? 'border-selection-border ring-1 ring-selection-border/35' : 'border-border'}`}>
+              <span className="pointer-events-none absolute inset-y-0 left-6 right-6 flex items-center gap-1.5 truncate text-[9px] font-semibold"><Type className="size-3.5 shrink-0" /> {clip.text || 'Text'}</span>
             </div>
-            <button type="button" aria-label="Trim start of text" onPointerDown={(event) => startDrag(event, index, 'start')} className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-l-lg bg-ink/75 text-white"><GripVertical className="size-3" /></button>
-            <button type="button" aria-label="Trim end of text" onPointerDown={(event) => startDrag(event, index, 'end')} className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-r-lg bg-ink/75 text-white"><GripVertical className="size-3" /></button>
+            <button type="button" aria-label="Trim start of text" onPointerDown={(event) => startDrag(event, index, 'start')} className="absolute inset-y-0 left-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-l-lg bg-[var(--color-timeline-handle)] text-white"><GripVertical className="size-3" /></button>
+            <button type="button" aria-label="Trim end of text" onPointerDown={(event) => startDrag(event, index, 'end')} className="absolute inset-y-0 right-0 z-20 flex w-5 cursor-ew-resize items-center justify-center rounded-r-lg bg-[var(--color-timeline-handle)] text-white"><GripVertical className="size-3" /></button>
             <ClipContextMenu label="Text clip" onOpen={() => setSelection({ kind: 'text', id: clip.id })} onDuplicate={duplicateSelectedTimelineItem} onDelete={deleteSelectedTimelineItem} />
           </div>
         );

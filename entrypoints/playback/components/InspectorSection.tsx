@@ -26,9 +26,9 @@ export function InspectorSection({
         aria-expanded={open}
         aria-controls={contentId}
         onClick={() => setOpen((current) => !current)}
-        className="group flex w-full items-center gap-2.5 px-4 py-3 text-left transition hover:bg-cream-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-400"
+        className="group flex w-full items-center gap-2.5 px-4 py-3 text-left transition hover:bg-control focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-400"
       >
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700 transition group-hover:bg-primary-100">
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-selection text-primary-700 transition group-hover:bg-primary-100">
           <Icon className="size-3.5" />
         </span>
         <span className="min-w-0 flex-1">

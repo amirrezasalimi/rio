@@ -169,7 +169,7 @@ export function RegionSelector({ onComplete }: RegionSelectorProps) {
             <button type="button" onClick={() => onComplete(null)} className="flex items-center gap-1.5 rounded-xl bg-surface px-3.5 py-2.5 text-xs font-semibold text-muted shadow-lg hover:text-ink">
               <X className="size-3.5" /> Cancel
             </button>
-            <button type="button" disabled={!valid} onClick={confirm} className="flex items-center gap-1.5 rounded-xl bg-primary-500 px-3.5 py-2.5 text-xs font-semibold text-white shadow-lg hover:bg-primary-600 disabled:opacity-40">
+            <button type="button" disabled={!valid} onClick={confirm} className="flex items-center gap-1.5 rounded-xl bg-primary-500 px-3.5 py-2.5 text-xs font-semibold text-on-primary shadow-lg hover:bg-primary-600 disabled:opacity-40">
               <Check className="size-3.5" /> Record area
             </button>
           </div>

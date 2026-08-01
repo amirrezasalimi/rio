@@ -30,7 +30,7 @@ function MiniSwitch({ checked, label, onChange }: { checked: boolean; label: str
 
 function ColorControl({ label, value, onChange, onBlur }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void }) {
   return (
-    <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[9px] font-semibold text-muted">
+    <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-control px-2.5 py-2 text-[9px] font-semibold text-muted">
       {label}
       <span className="relative size-7 overflow-hidden rounded-lg border border-border shadow-sm" style={{ background: value }}>
         <input aria-label={`${label} color`} type="color" value={value} onChange={(event) => onChange(event.currentTarget.value)} onBlur={onBlur} className="absolute -inset-2 size-12 cursor-pointer opacity-0" />
@@ -61,12 +61,12 @@ export function GestureSettingsPanel() {
   return (
     <div>
       <InspectorSection icon={MousePointerClick} title="Source & actions" summary={`${clip.settings.enabled ? Object.values(clip.settings.enabled).filter(Boolean).length : 0} action types enabled`} defaultOpen>
-        <label className="block text-[9px] font-semibold text-muted">Source video<select value={clip.sourceAssetId ?? 'current'} onChange={(event) => setSource(event.currentTarget.value)} className="mt-1.5 w-full rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[10px] font-semibold text-ink outline-none focus:border-primary-400">{sources.map((source) => <option key={source.id} value={source.id}>{source.name} · {(source.durationMs / 1_000).toFixed(1)}s · {source.interactions.length} actions</option>)}</select></label>
+        <label className="block text-[9px] font-semibold text-muted">Source video<select value={clip.sourceAssetId ?? 'current'} onChange={(event) => setSource(event.currentTarget.value)} className="mt-1.5 w-full rounded-xl border border-border bg-control px-2.5 py-2 text-[10px] font-semibold text-ink outline-none focus:border-selection-border">{sources.map((source) => <option key={source.id} value={source.id}>{source.name} · {(source.durationMs / 1_000).toFixed(1)}s · {source.interactions.length} actions</option>)}</select></label>
         <p className="mb-2 mt-3 text-[10px] font-semibold text-ink">Recorded actions</p>
         <div className="space-y-1.5">
           {ACTIONS.map((action) => (
-            <div key={action.value} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-cream-50 px-2.5 py-2 transition hover:border-primary-200">
-              <span className="min-w-0"><span className="block text-[10px] font-semibold text-ink">{action.label}</span><span className="block truncate text-[8px] text-muted">{action.description}</span></span>
+            <div key={action.value} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-control px-2.5 py-2 transition hover:border-primary-200">
+              <span className="min-w-0"><span className="block text-[10px] font-semibold text-ink">{action.label}</span><span className="block truncate text-[9px] text-muted">{action.description}</span></span>
               <MiniSwitch label={`Enable ${action.label}`} checked={clip.settings.enabled[action.value]} onChange={(checked) => setAction(action.value, checked)} />
             </div>
           ))}
@@ -76,7 +76,7 @@ export function GestureSettingsPanel() {
       <InspectorSection icon={WandSparkles} title="Effect" summary={`${ANIMATIONS.find((animation) => animation.value === clip.settings.animation)?.label} · ${clip.settings.durationMs}ms`} defaultOpen>
         <div className="grid grid-cols-3 gap-1.5">
           {ANIMATIONS.map((animation) => (
-            <button key={animation.value} type="button" onClick={() => { useHistoryStore.getState().record('Change gesture animation'); update({ animation: animation.value }); }} className={`rounded-xl border px-2 py-2.5 text-[9px] font-semibold transition ${clip.settings.animation === animation.value ? 'border-primary-400 bg-primary-50 text-primary-800' : 'border-border bg-cream-50 text-muted hover:border-primary-200'}`}>
+            <button key={animation.value} type="button" aria-pressed={clip.settings.animation === animation.value} onClick={() => { useHistoryStore.getState().record('Change gesture animation'); update({ animation: animation.value }); }} className={`rounded-xl border px-2 py-2.5 text-[9px] font-semibold transition ${clip.settings.animation === animation.value ? 'border-selection-border bg-selection text-primary-800' : 'border-border bg-control text-muted hover:border-primary-200'}`}>
               <span className={`mx-auto mb-1.5 block rounded-full bg-primary-400 ${animation.value === 'pulse' ? 'size-3 shadow-[0_0_0_5px_rgba(50,143,223,.16)]' : animation.value === 'ripple' ? 'size-5 border-2 border-primary-500 bg-transparent' : 'size-4 rotate-45 rounded-sm'}`} />
               {animation.label}
             </button>
@@ -99,7 +99,7 @@ export function GestureSettingsPanel() {
       <InspectorSection icon={Sparkles} title="Pointer" summary={`${clip.settings.cursorSize}px cursor · ${clip.settings.trailWidth}px trail`}>
         <EditorRange label="Cursor size" value={clip.settings.cursorSize} min={8} max={48} suffix="px" onChange={(cursorSize) => update({ cursorSize })} />
         <EditorRange className="mt-3" label="Drag trail" value={clip.settings.trailWidth} min={1} max={18} suffix="px" onChange={(trailWidth) => update({ trailWidth })} />
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/70 p-2.5 text-[9px] leading-relaxed text-primary-800"><Move className="size-3.5 shrink-0" /><span>Gesture timing follows edited recording clips. Move or trim this layer to retime the effects.</span><MousePointer2 className="size-3.5 shrink-0" /></div>
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary-100 bg-selection/70 p-2.5 text-[9px] leading-relaxed text-primary-800"><Move className="size-3.5 shrink-0" /><span>Gesture timing follows edited recording clips. Move or trim this layer to retime the effects.</span><MousePointer2 className="size-3.5 shrink-0" /></div>
       </InspectorSection>
     </div>
   );

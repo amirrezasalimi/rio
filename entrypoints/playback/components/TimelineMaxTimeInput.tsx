@@ -22,7 +22,7 @@ export function TimelineMaxTimeInput({ valueSeconds, minimumSeconds, onCommit }:
   };
 
   return (
-    <label className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2 py-1 text-[9px] font-semibold text-muted">
+    <label className="flex items-center gap-1.5 rounded-xl border border-border bg-control px-2 py-1 text-[9px] font-semibold text-muted">
       Max time
       <input
         aria-label="Timeline maximum time in seconds"
@@ -41,7 +41,7 @@ export function TimelineMaxTimeInput({ valueSeconds, minimumSeconds, onCommit }:
           if (event.key === 'Enter') event.currentTarget.blur();
           if (event.key === 'Escape') { cancelNextBlur.current = true; setDraft(String(valueSeconds)); event.currentTarget.blur(); }
         }}
-        className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-right font-mono text-[10px] text-ink outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+        className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-right font-mono text-[10px] text-ink outline-none transition focus:border-selection-border focus:ring-2 focus:ring-primary-100"
       />
       <span>s</span>
     </label>

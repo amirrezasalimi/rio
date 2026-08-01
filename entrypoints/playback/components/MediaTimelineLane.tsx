@@ -56,9 +56,9 @@ interface MediaTimelineLaneProps {
 }
 
 const TYPE_STYLES: Record<TimelineMediaType, string> = {
-  image: 'border-accent-300 bg-accent-100 text-accent-900',
-  video: 'border-primary-300 bg-primary-100 text-primary-950',
-  audio: 'border-cream-400 bg-cream-200 text-cream-950',
+  image: 'border-border bg-[var(--color-timeline-image)] text-ink',
+  video: 'border-border bg-[var(--color-timeline-video)] text-ink',
+  audio: 'border-border bg-[var(--color-timeline-audio)] text-ink',
 };
 
 function TypeIcon({ type }: { type: TimelineMediaType }) {
@@ -183,7 +183,7 @@ export function MediaLibrary({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1.5 rounded-xl border border-border bg-cream-50 px-2.5 py-2 text-[10px] font-semibold transition hover:border-primary-300 hover:bg-primary-50"
+        className="flex items-center gap-1.5 rounded-xl border border-border bg-control px-2.5 py-2 text-[10px] font-semibold transition hover:border-primary-300 hover:bg-control-hover"
       >
         <Plus className="size-3.5" /> Add item
       </button>
@@ -215,37 +215,37 @@ export function MediaLibrary({
 
       {open && createPortal(
         <div ref={popoverRef} role="dialog" aria-label="Add timeline item" className="fixed z-[100] w-72 overflow-y-auto rounded-2xl border border-border bg-surface p-2 shadow-2xl shadow-ink/15" style={{ left: popoverPosition.left, top: popoverPosition.top, maxHeight: popoverPosition.maxHeight }}>
-          <div className="mb-2 px-1"><p className="text-[10px] font-semibold">Add item</p><p className="text-[8px] text-muted">Place it at the current playhead</p></div>
+          <div className="mb-2 px-1"><p className="text-[10px] font-semibold">Add item</p><p className="text-[9px] text-muted">Place it at the current playhead</p></div>
           <div className="mb-2 grid grid-cols-2 gap-1.5">
-            <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><FileVideo className="size-3.5 text-primary-600" /> Media</button>
-            <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><ImagePlus className="size-3.5 text-primary-600" /> Image</button>
-            <button type="button" disabled={!canAddGesture} onClick={() => { onAddGesture(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300 disabled:opacity-40"><MousePointerClick className="size-3.5 text-primary-600" /> Gestures</button>
-            <button type="button" onClick={() => { onSplitClip(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Scissors className="size-3.5 text-primary-600" /> Split clip</button>
-            <button type="button" onClick={() => { onAddText(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Type className="size-3.5 text-primary-600" /> Text</button>
-            <button type="button" onClick={() => { onAddZoom(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-2 text-[9px] font-semibold hover:border-primary-300"><Search className="size-3.5 text-primary-600" /> Zoom</button>
+            <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300"><FileVideo className="size-3.5 text-primary-600" /> Media</button>
+            <button type="button" onClick={() => imageInputRef.current?.click()} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300"><ImagePlus className="size-3.5 text-primary-600" /> Image</button>
+            <button type="button" disabled={!canAddGesture} onClick={() => { onAddGesture(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300 disabled:opacity-40"><MousePointerClick className="size-3.5 text-primary-600" /> Gestures</button>
+            <button type="button" onClick={() => { onSplitClip(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300"><Scissors className="size-3.5 text-primary-600" /> Split clip</button>
+            <button type="button" onClick={() => { onAddText(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300"><Type className="size-3.5 text-primary-600" /> Text</button>
+            <button type="button" onClick={() => { onAddZoom(); setOpen(false); }} className="flex items-center gap-2 rounded-xl border border-border bg-control p-2 text-[9px] font-semibold hover:border-primary-300"><Search className="size-3.5 text-primary-600" /> Zoom</button>
           </div>
-          <p className="mb-1 px-1 text-[8px] font-semibold uppercase tracking-wide text-muted">Project media</p>
+          <p className="mb-1 px-1 text-[9px] font-semibold uppercase tracking-wide text-muted">Project media</p>
           <div className="max-h-36 space-y-1 overflow-y-auto">
-            <button type="button" onClick={() => { onAddOriginal(); setOpen(false); }} className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 p-1.5 text-left hover:border-primary-400"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-950"><FileVideo className="size-3.5" /></span><span><span className="block text-[9px] font-semibold text-ink">Original recording</span><span className="block text-[8px] text-muted">Permanent source asset</span></span></button>
+            <button type="button" onClick={() => { onAddOriginal(); setOpen(false); }} className="flex w-full items-center gap-2 rounded-xl border border-primary-200 bg-selection p-1.5 text-left hover:border-selection-border"><span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-100 text-primary-950"><FileVideo className="size-3.5" /></span><span><span className="block text-[9px] font-semibold text-ink">Original recording</span><span className="block text-[9px] text-muted">Permanent source asset</span></span></button>
             {assets.length === 0 && (
               <button
                 type="button"
                 onClick={() => inputRef.current?.click()}
-                className="w-full rounded-xl border border-dashed border-primary-200 bg-primary-50 p-5 text-[9px] font-semibold text-primary-700"
+                className="w-full rounded-xl border border-dashed border-primary-200 bg-selection p-5 text-[9px] font-semibold text-primary-700"
               >
                 Choose an image, video, or audio file
               </button>
             )}
             {assets.map((asset) => (
-              <div key={asset.id} className="flex items-center gap-2 rounded-xl border border-border bg-cream-50 p-1.5">
+              <div key={asset.id} className="flex items-center gap-2 rounded-xl border border-border bg-control p-1.5">
                 <button type="button" onClick={() => addPlacement(asset)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                   <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${TYPE_STYLES[asset.type]}`}><TypeIcon type={asset.type} /></span>
                   <span className="min-w-0">
                     <span className="block truncate text-[9px] font-semibold text-ink">{asset.name}</span>
-                    <span className="block text-[8px] capitalize text-muted">{asset.type}</span>
+                    <span className="block text-[9px] capitalize text-muted">{asset.type}</span>
                   </span>
                 </button>
-                <button type="button" aria-label={`Delete ${asset.name}`} onClick={() => onDeleteAsset(asset.id)} className="rounded-lg p-1.5 text-danger hover:bg-accent-50"><Trash2 className="size-3" /></button>
+                <button type="button" aria-label={`Delete ${asset.name}`} onClick={() => onDeleteAsset(asset.id)} className="rounded-lg p-1.5 text-danger hover:bg-danger-soft"><Trash2 className="size-3" /></button>
               </div>
             ))}
           </div>
@@ -380,7 +380,7 @@ export function MediaTimelineLane({
                 tabIndex={0}
                 onPointerDown={(event) => startDrag(event, index, 'item')}
                 onClick={(event) => { if (event.detail === 0) selectItem({ kind: 'media', id: item.id }, event.shiftKey); }}
-                className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border-2 transition-colors active:cursor-grabbing ${TYPE_STYLES[item.type]} ${selected ? 'ring-2 ring-primary-500/25' : ''}`}
+                className={`absolute inset-0 cursor-grab overflow-hidden rounded-lg border transition-colors active:cursor-grabbing ${TYPE_STYLES[item.type]} ${selected ? 'border-selection-border ring-1 ring-selection-border/35' : ''}`}
               >
                 {item.type === 'audio' && <>
                   <AudioWaveform src={waveformSource} sourceStartMs={item.sourceStartMs} sourceEndMs={item.sourceEndMs} sourceDurationMs={item.assetId === 'original-recording-audio' ? recordingDurationMs : item.assetDurationMs} volume={item.volume} className="left-0 bottom-0 h-5 text-cream-950" />
@@ -388,17 +388,17 @@ export function MediaTimelineLane({
                 </>}
                 <div className="pointer-events-none absolute inset-y-0 left-6 right-6 z-10 flex min-w-0 items-center gap-1.5">
                   <TypeIcon type={item.type} />
-                  <span className="truncate text-[8px] font-semibold">{item.name}</span>
-                  {item.type === 'audio' && <span className="shrink-0 rounded bg-surface/70 px-1 font-mono text-[7px] font-semibold">{timeLabel(getTimelineItemDurationMs(item))}</span>}
-                  {item.type === 'video' && <span className="shrink-0 font-mono text-[7px] font-semibold">{getPlaybackRate(item)}×</span>}
-                  {extendsPastSource && <span className="shrink-0 rounded bg-surface/75 px-1 py-0.5 text-[7px] font-semibold">Held</span>}
+                  <span className="truncate text-[9px] font-semibold">{item.name}</span>
+                  {item.type === 'audio' && <span className="shrink-0 rounded bg-surface/70 px-1 font-mono text-[9px] font-semibold">{timeLabel(getTimelineItemDurationMs(item))}</span>}
+                  {item.type === 'video' && <span className="shrink-0 font-mono text-[9px] font-semibold">{getPlaybackRate(item)}×</span>}
+                  {extendsPastSource && <span className="shrink-0 rounded bg-surface/75 px-1 py-0.5 text-[9px] font-semibold">Held</span>}
                 </div>
               </div>
               <button
                 type="button"
                 aria-label={`Trim start of ${item.name}`}
                 onPointerDown={(event) => startDrag(event, index, 'start')}
-                className="pointer-events-auto absolute inset-y-0 left-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-l-lg bg-ink/70 text-white"
+                className="pointer-events-auto absolute inset-y-0 left-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-l-lg bg-[var(--color-timeline-handle)] text-white"
               >
                 <GripVertical className="size-3" />
               </button>
@@ -407,7 +407,7 @@ export function MediaTimelineLane({
                 aria-label={`Extend or trim end of ${item.name}`}
                 title={item.type === 'video' ? 'Drag to extend past the original video duration' : 'Drag to resize'}
                 onPointerDown={(event) => startDrag(event, index, 'end')}
-                className="pointer-events-auto absolute inset-y-0 right-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-r-lg bg-ink/70 text-white"
+                className="pointer-events-auto absolute inset-y-0 right-0 z-50 flex w-5 cursor-ew-resize touch-none items-center justify-center rounded-r-lg bg-[var(--color-timeline-handle)] text-white"
               >
                 <GripVertical className="size-3" />
               </button>
