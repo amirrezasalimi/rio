@@ -2,6 +2,20 @@
 
 All notable changes to Rio Recorder are documented in this file.
 
+## [0.1.4] - 2026-08-01
+
+### Media editing
+
+- Added horizontal and vertical flip controls for recording clips and imported media.
+- Kept recorded gesture overlays aligned with flipped video content during preview and export.
+- Increased the media corner-radius range and switched cropped media to a rectangular shape when border controls are edited.
+
+### Editor and recording controls
+
+- Improved editor behavior in shorter windows by removing the fixed minimum height and containing sidebar scrolling.
+- Reset the settings sidebar to the top when the selected timeline item changes.
+- Kept the webcam preview centered above draggable recording controls.
+
 ## [0.1.3] - 2026-08-01
 
 ### Webcam recording
@@ -43,4 +57,5 @@ All notable changes to Rio Recorder are documented in this file.
 - Keep long-running screen and webcam capture in the recorder extension context rather than the short-lived popup.
 - Improved webcam asset finalization so saving waits for webcam recorder output without allowing the controls to remain stuck indefinitely.
 
+[0.1.4]: https://github.com/amirrezasalimi/rio/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/amirrezasalimi/rio/compare/v0.1.2...v0.1.3
