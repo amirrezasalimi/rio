@@ -2,6 +2,23 @@
 
 All notable changes to Rio Recorder are documented in this file.
 
+## [0.1.5] - 2026-08-02
+
+### Appearance and branding
+
+- Added a persistent dark theme and applied semantic colors throughout the extension interfaces and editor.
+- Updated Rio's logo, extension icons, and shared branding assets.
+
+### Editor experience
+
+- Added searchable, collapsible inspector sections and widened the settings sidebar for easier navigation.
+- Improved inspector controls for audio-only media and refined the playback settings layout.
+- Kept the History popover within the visible browser viewport.
+
+### Licensing and documentation
+
+- Adopted the PolyForm Noncommercial License 1.0.0 and clarified source availability, installation, privacy, and commercial-use terms.
+
 ## [0.1.4] - 2026-08-01
 
 ### Media editing
@@ -57,5 +74,6 @@ All notable changes to Rio Recorder are documented in this file.
 - Keep long-running screen and webcam capture in the recorder extension context rather than the short-lived popup.
 - Improved webcam asset finalization so saving waits for webcam recorder output without allowing the controls to remain stuck indefinitely.
 
+[0.1.5]: https://github.com/amirrezasalimi/rio/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/amirrezasalimi/rio/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/amirrezasalimi/rio/compare/v0.1.2...v0.1.3
