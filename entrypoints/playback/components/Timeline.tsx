@@ -115,9 +115,6 @@ export function Timeline({
   // underneath the pointer as the item duration changes.
   const timelineDurationMs = lockedDragDurationMs ?? projectDurationMs + trailingEditSpaceMs;
   useEffect(() => {
-    if (timelineLimitMs < sourceDurationMs) setTimelineLimitMs(sourceDurationMs);
-  }, [sourceDurationMs, timelineLimitMs, setTimelineLimitMs]);
-  useEffect(() => {
     const track = viewportRef.current;
     if (!track) return;
     const zoomTimeline = (event: WheelEvent) => {

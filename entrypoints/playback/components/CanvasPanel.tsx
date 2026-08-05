@@ -96,11 +96,11 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
     && item.sourceEndMs === selectedRecording.sourceEndMs
     && item.timelineStartMs === selectedRecording.timelineStartMs
   ));
-  const transform = isUploadedMedia
-    ? selectedUpload
-    : selectedRecording
-      ? getClipMediaTransform(selectedRecording, recordedMedia)
-      : recordedMedia;
+  const recordingTransform = selectedRecording
+    ? getClipMediaTransform(selectedRecording, recordedMedia)
+    : recordedMedia;
+  const transform = isUploadedMedia ? selectedUpload : recordingTransform;
+  const contentFit = transform.contentFit ?? (isUploadedMedia ? 'cover' : 'contain');
   const updateTransform = (patch: Partial<typeof recordedMedia>) => {
     if (isUploadedMedia) updateTimelineMediaItem(selectedUpload.id, patch);
     else if (selectedRecording) updateSelectedClip({ media: { ...transform, ...patch } });
@@ -117,11 +117,13 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
         fadeInMs: 0,
         fadeOutMs: 0,
         holdLastFrame: false,
+        contentFit: 'cover',
+        contentScale: 100,
         flipHorizontal: false,
         flipVertical: false,
       });
     } else if (selectedRecording) {
-      updateSelectedClip({ media: { scale: 86, positionX: 50, positionY: 50, flipHorizontal: false, flipVertical: false } });
+      updateSelectedClip({ media: { scale: 86, positionX: 50, positionY: 50, contentFit: 'contain', contentScale: 100, outerPaddingX: 0, outerPaddingY: 0, flipHorizontal: false, flipVertical: false } });
     } else resetMedia();
   };
 
@@ -289,34 +291,46 @@ export function CanvasPanel({ mode, hasRecordingAudio }: { mode: 'general' | 'se
               </div>
             </div>
           )}
-          {isUploadedMedia && selectedUpload.type !== 'audio' && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {(['cover', 'contain', 'fill'] as MediaContentFit[]).map((fit) => (
-                <button
-                  key={fit}
-                  type="button"
-                  onClick={() => {
-                    useHistoryStore.getState().record('Change media fit');
-                    updateTimelineMediaItem(selectedUpload.id, { contentFit: fit });
-                  }}
-                  className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
-                    (selectedUpload.contentFit ?? 'cover') === fit
-                      ? 'border-selection-border bg-selection text-primary-700'
-                      : 'border-border bg-surface text-muted hover:border-primary-200'
-                  }`}
-                >
-                  {fit}
-                </button>
-              ))}
+          {(!isUploadedMedia || selectedUpload.type !== 'audio') && (
+            <div>
+              <p className="mb-1.5 text-[9px] font-semibold text-muted">Content fit</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['cover', 'contain', 'fill'] as MediaContentFit[]).map((fit) => (
+                  <button
+                    key={fit}
+                    type="button"
+                    onClick={() => {
+                      useHistoryStore.getState().record('Change media fit');
+                      updateTransform({ contentFit: fit });
+                    }}
+                    className={`rounded-lg border py-2 text-[9px] font-semibold capitalize transition ${
+                      contentFit === fit
+                        ? 'border-selection-border bg-selection text-primary-700'
+                        : 'border-border bg-surface text-muted hover:border-primary-200'
+                    }`}
+                  >
+                    {fit}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[9px] leading-relaxed text-muted">
+                {contentFit === 'fill' ? 'Stretch content to the clip frame.' : contentFit === 'cover' ? 'Fill the clip frame and crop overflow.' : 'Show the complete source without cropping.'}
+              </p>
             </div>
           )}
-          <EditorRange label="Clip size" value={transform.scale} min={5} max={160} suffix="%" onChange={(scale) => updateTransform({ scale })} />
-          {isUploadedMedia && selectedUpload.type !== 'audio' && (
-            <EditorRange label="Content zoom" value={selectedUpload.contentScale ?? 100} min={50} max={300} suffix="%" onChange={(contentScale) => updateTimelineMediaItem(selectedUpload.id, { contentScale })} />
+          <EditorRange label="Clip size" value={transform.scale} min={5} max={160} suffix="%" resetValue={isUploadedMedia ? 42 : 86} onChange={(scale) => updateTransform({ scale })} />
+          {(!isUploadedMedia || selectedUpload.type !== 'audio') && (
+            <EditorRange label="Inner zoom" value={transform.contentScale ?? 100} min={50} max={300} suffix="%" resetValue={100} onChange={(contentScale) => updateTransform({ contentScale })} />
+          )}
+          {!isUploadedMedia && (
+            <div className="grid grid-cols-2 gap-2">
+              <EditorRange label="Outer padding X" value={recordingTransform.outerPaddingX ?? 0} min={-64} max={64} suffix="px" resetValue={0} onChange={(outerPaddingX) => updateTransform({ outerPaddingX })} />
+              <EditorRange label="Outer padding Y" value={recordingTransform.outerPaddingY ?? 0} min={-64} max={64} suffix="px" resetValue={0} onChange={(outerPaddingY) => updateTransform({ outerPaddingY })} />
+            </div>
           )}
           <div className="grid grid-cols-2 gap-2">
-            <EditorRange label="Horizontal" value={transform.positionX} min={0} max={100} suffix="%" onChange={(positionX) => updateTransform({ positionX })} />
-            <EditorRange label="Vertical" value={transform.positionY} min={0} max={100} suffix="%" onChange={(positionY) => updateTransform({ positionY })} />
+            <EditorRange label="Horizontal" value={transform.positionX} min={0} max={100} suffix="%" resetValue={50} onChange={(positionX) => updateTransform({ positionX })} />
+            <EditorRange label="Vertical" value={transform.positionY} min={0} max={100} suffix="%" resetValue={50} onChange={(positionY) => updateTransform({ positionY })} />
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             <button

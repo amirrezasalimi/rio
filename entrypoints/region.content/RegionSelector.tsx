@@ -135,10 +135,18 @@ export function RegionSelector({ onComplete }: RegionSelectorProps) {
       onPointerCancel={finishInteraction}
     >
       {!selection && <div className="pointer-events-none absolute inset-0 bg-ink/15" />}
-      <div className="pointer-events-none absolute left-1/2 top-5 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-sm font-semibold shadow-xl shadow-ink/20">
-        <span className="size-2.5 rounded-full bg-primary-500" />
-        Draw the part of this page you want to record
-        <span className="ml-2 rounded-md bg-cream-100 px-2 py-1 text-[10px] font-medium text-muted">Esc to cancel</span>
+      <div className="pointer-events-none absolute left-1/2 top-3 flex w-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-2xl bg-surface px-3 py-2.5 text-center text-xs font-semibold shadow-xl shadow-ink/20 sm:top-5 sm:w-auto sm:max-w-max sm:flex-nowrap sm:px-4 sm:py-3 sm:text-sm">
+        <span className="size-2.5 shrink-0 rounded-full bg-primary-500" />
+        <span>Draw the part of this page you want to record</span>
+        <span className="rounded-md bg-cream-100 px-2 py-1 text-[10px] font-medium text-muted sm:ml-2">Esc to cancel</span>
+        <button
+          type="button"
+          disabled={!valid}
+          onClick={confirm}
+          className="pointer-events-auto flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary-500 px-3.5 py-2.5 text-xs font-semibold text-on-primary shadow-lg transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:py-2"
+        >
+          <Check className="size-3.5" /> Record area
+        </button>
       </div>
 
       {selection && (
@@ -168,9 +176,6 @@ export function RegionSelector({ onComplete }: RegionSelectorProps) {
           >
             <button type="button" onClick={() => onComplete(null)} className="flex items-center gap-1.5 rounded-xl bg-surface px-3.5 py-2.5 text-xs font-semibold text-muted shadow-lg hover:text-ink">
               <X className="size-3.5" /> Cancel
-            </button>
-            <button type="button" disabled={!valid} onClick={confirm} className="flex items-center gap-1.5 rounded-xl bg-primary-500 px-3.5 py-2.5 text-xs font-semibold text-on-primary shadow-lg hover:bg-primary-600 disabled:opacity-40">
-              <Check className="size-3.5" /> Record area
             </button>
           </div>
         </div>

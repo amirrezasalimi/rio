@@ -101,7 +101,8 @@ async function showPageControls(sessionId: string, pending: PendingCapture) {
     type: 'show-recorder-controls',
     sessionId,
     state,
-    area: pending.area,
+    captureMode: pending.options.mode,
+    area: pending.options.mode === 'region' ? pending.area : undefined,
     webcamEnabled: pending.options.webcam,
   });
 }

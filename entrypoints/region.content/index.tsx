@@ -1,7 +1,7 @@
 import ReactDOM, { type Root } from 'react-dom/client';
 import type { ContentScriptUi } from 'wxt/utils/content-script-ui/types';
 import { startInteractionTracking } from '../shared/recording/interactions';
-import type { CropArea, RecorderRuntimeMessage, RecordingSessionState } from '../shared/recording/types';
+import type { CaptureMode, CropArea, RecorderRuntimeMessage, RecordingSessionState } from '../shared/recording/types';
 import { CropGuide } from './CropGuide';
 import { RecordingPanel } from './RecordingPanel';
 import { RegionSelector } from './RegionSelector';
@@ -16,6 +16,7 @@ interface ShowControlsMessage {
   type: 'show-recorder-controls';
   sessionId: string;
   state: RecordingSessionState;
+  captureMode: CaptureMode;
   area?: CropArea;
   webcamEnabled?: boolean;
 }
@@ -43,6 +44,7 @@ export default defineContentScript({
     let controlsRoot: Root | undefined;
     let controlsSessionId = '';
     let controlsState: RecordingSessionState = { status: 'choosing', elapsedMs: 0 };
+    let controlsMode: CaptureMode = 'browser';
     let controlsArea: CropArea | undefined;
     let webcamEnabled = false;
     let stopInteractionTracking: (() => void) | undefined;
@@ -67,19 +69,21 @@ export default defineContentScript({
       if (!controlsRoot || !controlsSessionId) return;
       controlsRoot.render(
         <>
-          {controlsArea && <CropGuide area={controlsArea} />}
-          <RecordingPanel
-            sessionId={controlsSessionId}
-            state={controlsState}
-            webcamEnabled={webcamEnabled}
-            onCommand={(command) => {
-              void browser.runtime.sendMessage({
-                type: 'recorder-command',
-                sessionId: controlsSessionId,
-                command,
-              } satisfies RecorderRuntimeMessage);
-            }}
-          />
+          {controlsMode === 'region' && controlsArea && <CropGuide area={controlsArea} />}
+          {controlsMode !== 'browser' && (
+            <RecordingPanel
+              sessionId={controlsSessionId}
+              state={controlsState}
+              webcamEnabled={webcamEnabled}
+              onCommand={(command) => {
+                void browser.runtime.sendMessage({
+                  type: 'recorder-command',
+                  sessionId: controlsSessionId,
+                  command,
+                } satisfies RecorderRuntimeMessage);
+              }}
+            />
+          )}
         </>,
       );
     };
@@ -88,7 +92,8 @@ export default defineContentScript({
       controlsUi?.remove();
       controlsSessionId = message.sessionId;
       controlsState = message.state;
-      controlsArea = message.area;
+      controlsMode = message.captureMode;
+      controlsArea = message.captureMode === 'region' ? message.area : undefined;
       webcamEnabled = message.webcamEnabled ?? false;
 
       controlsUi = await createShadowRootUi<Root>(ctx, {

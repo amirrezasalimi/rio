@@ -2,7 +2,7 @@ import { MousePointer2 } from 'lucide-react';
 import { interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import type { EditorClip, GestureAction, GestureClip, MediaTransform, TimelineAssetSource, TimelineMediaItem } from './types';
-import { getClipMediaTransform, getPlaybackRate } from './types';
+import { getCanvasMediaSize, getClipMediaTransform, getFittedMediaSize, getPlaybackRate } from './types';
 
 interface ProjectedEvent extends RecordedInteraction {
   timelineMs: number;
@@ -44,15 +44,22 @@ function getSourcePoint(event: RecordedInteraction, sourceWidth: number, sourceH
 
 function getMediaBounds(clip: EditorClip | undefined, fallback: MediaTransform, canvasWidth: number, canvasHeight: number, sourceWidth: number, sourceHeight: number) {
   const media = clip ? getClipMediaTransform(clip, fallback) : fallback;
-  const fit = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight) * media.scale / 100;
-  const width = sourceWidth * fit;
-  const height = sourceHeight * fit;
-  return {
-    left: canvasWidth * media.positionX / 100 - width / 2,
-    top: canvasHeight * media.positionY / 100 - height / 2,
-    width,
-    height,
-  };
+  const contentFit = media.contentFit ?? 'contain';
+  const frame = contentFit === 'contain'
+    ? getFittedMediaSize(canvasWidth, canvasHeight, sourceWidth, sourceHeight, media.scale)
+    : getCanvasMediaSize(canvasWidth, canvasHeight, media.scale);
+  const centerX = canvasWidth * media.positionX / 100;
+  const centerY = canvasHeight * media.positionY / 100;
+  const innerScale = Math.max(0.1, media.contentScale ?? 100) / 100;
+  if (contentFit === 'fill') {
+    const width = frame.width * innerScale;
+    const height = frame.height * innerScale;
+    return { left: centerX - width / 2, top: centerY - height / 2, width, height };
+  }
+  const fitScale = (contentFit === 'cover' ? Math.max : Math.min)(frame.width / Math.max(1, sourceWidth), frame.height / Math.max(1, sourceHeight)) * innerScale;
+  const width = sourceWidth * fitScale;
+  const height = sourceHeight * fitScale;
+  return { left: centerX - width / 2, top: centerY - height / 2, width, height };
 }
 
 function getAssetBounds(item: TimelineMediaItem, canvasWidth: number, canvasHeight: number, sourceWidth: number, sourceHeight: number) {

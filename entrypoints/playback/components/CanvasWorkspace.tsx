@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerRef } from '@remotion/player';
 import { Player } from '@remotion/player';
 import { useEditorStore } from '../editor/store';
-import { FPS, getClipMediaTransform, getEditedDurationMs } from '../editor/types';
+import { FPS, applyMediaOuterPadding, getCanvasMediaSize, getClipMediaTransform, getEditedDurationMs, getFittedMediaSize } from '../editor/types';
 import { VideoComposition, type VideoCompositionProps } from '../editor/VideoComposition';
 
 interface CanvasWorkspaceProps {
@@ -187,22 +187,24 @@ export function CanvasWorkspace({ inputProps, playerRef, movingMedia, onMovingMe
     window.addEventListener('pointerup', stop, { once: true });
   };
 
-  const safeSourceWidth = Math.max(1, inputProps.sourceWidth);
-  const safeSourceHeight = Math.max(1, inputProps.sourceHeight);
-  const selectedTransform = selectedUpload ?? (selectedRecording ? getClipMediaTransform(selectedRecording, inputProps.media) : inputProps.media);
-  const fit = Math.min(inputProps.canvas.width / safeSourceWidth, inputProps.canvas.height / safeSourceHeight) * selectedTransform.scale / 100;
+  const recordingTransform = selectedRecording ? getClipMediaTransform(selectedRecording, inputProps.media) : inputProps.media;
+  const selectedTransform = selectedUpload ?? recordingTransform;
   const selectedAsset = selectedUpload ? inputProps.assetSources.find((asset) => asset.id === selectedUpload.assetId) : undefined;
   const selectedAssetRatio = selectedUpload?.aspectRatio === '16:9' ? 16 / 9
     : selectedUpload?.aspectRatio === '4:3' ? 4 / 3
       : selectedUpload?.aspectRatio === '1:1' ? 1
         : selectedUpload?.aspectRatio === '9:16' ? 9 / 16
           : selectedAsset ? selectedAsset.width / Math.max(1, selectedAsset.height) : 1;
-  const selectedAssetBaseWidth = selectedAsset
-    ? Math.min(inputProps.canvas.width / selectedAsset.width, inputProps.canvas.height / selectedAsset.height) * selectedAsset.width
-    : inputProps.canvas.width;
-  const selectedAssetBaseHeight = selectedAssetBaseWidth / Math.max(selectedAssetRatio, 0.01);
-  const overlayWidth = selectedUpload ? selectedAssetBaseWidth * selectedUpload.scale / 100 : safeSourceWidth * fit;
-  const overlayHeight = selectedUpload ? selectedAssetBaseHeight * selectedUpload.scale / 100 : safeSourceHeight * fit;
+  const baseOverlaySize = selectedUpload && selectedAsset
+    ? getFittedMediaSize(inputProps.canvas.width, inputProps.canvas.height, selectedAsset.width, selectedAsset.height, selectedUpload.scale, selectedAssetRatio)
+    : (selectedTransform.contentFit ?? 'contain') === 'contain'
+      ? getFittedMediaSize(inputProps.canvas.width, inputProps.canvas.height, inputProps.sourceWidth, inputProps.sourceHeight, selectedTransform.scale)
+      : getCanvasMediaSize(inputProps.canvas.width, inputProps.canvas.height, selectedTransform.scale);
+  const overlaySize = selectedUpload
+    ? baseOverlaySize
+    : applyMediaOuterPadding(baseOverlaySize, recordingTransform.outerPaddingX, recordingTransform.outerPaddingY);
+  const overlayWidth = overlaySize.width;
+  const overlayHeight = overlaySize.height;
   const canMoveSelection = Boolean(selectedRecording || selectedUpload) && (!selectedUpload || selectedUpload.type !== 'audio');
 
   return (

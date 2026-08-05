@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { CropArea, RecordedInteraction } from '../../shared/recording/types';
 import { AbsoluteFill, Freeze, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
 import type { BackgroundSettings, BorderShape, ClipVisualSettings, EditorClip, EditorSettings, FrameStyle, MediaTransform, ShadowStyle, TextClip, TimelineAssetSource, TimelineMediaItem } from './types';
-import { getBackgroundCss, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getNoiseStyle, getPlaybackRate, getTimelineItemDurationMs } from './types';
+import { applyMediaOuterPadding, getBackgroundCss, getCanvasMediaSize, getClipDurationMs, getClipMediaTransform, getClipVisualSettings, getEditedDurationMs, getFittedMediaSize, getNoiseStyle, getPlaybackRate, getTimelineItemDurationMs } from './types';
 import { GestureOverlay } from './GestureOverlay';
 import { getZoomStyle } from './zoom';
 
@@ -32,7 +32,7 @@ function getFrameAppearance(frameStyle: FrameStyle, borderOpacity: number, borde
     case 'liquid-glass': return { background: 'linear-gradient(135deg, rgba(255,255,255,.62), rgba(134,201,255,.2))', padding: 16, backdropFilter: 'blur(30px) saturate(1.35)', boxShadow: `${innerStroke === 'none' ? '' : `${innerStroke}, `}inset 0 0 24px rgba(255,255,255,.34)` };
     case 'inset-light': return { background: '#fffdf8', padding: 16, boxShadow: `${innerStroke === 'none' ? '' : `${innerStroke}, `}inset 0 12px 28px rgba(24,50,74,.1)` };
     case 'inset-dark': return { background: '#18324a', padding: 16, boxShadow: `${innerStroke === 'none' ? '' : `${innerStroke}, `}inset 0 12px 32px rgba(0,0,0,.28)` };
-    case 'outline': return { boxShadow: strokeWidth > 0 ? `0 0 0 ${strokeWidth}px ${stroke}` : 'none' };
+    case 'outline': return { boxShadow: innerStroke };
     case 'border': return { background: stroke, padding: strokeWidth };
     default: return { background: 'transparent' };
   }
@@ -75,17 +75,14 @@ function TimelineMediaSurface({ item, asset, canvasWidth, canvasHeight, defaultV
       : item.aspectRatio === '1:1' ? 1
         : item.aspectRatio === '9:16' ? 9 / 16
           : sourceWidth / sourceHeight;
-  const sourceRatio = sourceWidth / sourceHeight;
-  const fit = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight) * item.scale / 100;
-  const sourceContentWidth = Math.max(2, Math.round(sourceWidth * fit));
-  const sourceContentHeight = Math.max(2, Math.round(sourceHeight * fit));
-  const contentWidth = ratio >= sourceRatio ? sourceContentWidth : Math.max(2, Math.round(sourceContentHeight * ratio));
-  const contentHeight = ratio >= sourceRatio ? Math.max(2, Math.round(sourceContentWidth / ratio)) : sourceContentHeight;
+  const frameSize = getFittedMediaSize(canvasWidth, canvasHeight, sourceWidth, sourceHeight, item.scale, ratio);
+  const frameWidth = frameSize.width;
+  const frameHeight = frameSize.height;
   const circular = item.cropShape === 'circle';
   const appearance = getFrameAppearance(visual.frameStyle, visual.borderOpacity, visual.borderWidth, visual.borderColor);
   const padding = typeof appearance.padding === 'number' ? appearance.padding : 0;
-  const frameWidth = contentWidth + padding * 2;
-  const frameHeight = contentHeight + padding * 2;
+  const contentWidth = Math.max(2, frameWidth - padding * 2);
+  const contentHeight = Math.max(2, frameHeight - padding * 2);
 
   return (
     <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${item.positionX}%`, top: `${item.positionY}%`, transform: 'translate(-50%, -50%)', opacity: item.opacity / 100, boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: circular ? '50%' : visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}>
@@ -179,13 +176,17 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const { fps } = useVideoConfig();
   const visual = getClipVisualSettings(clip, defaultVisual);
   const media = getClipMediaTransform(clip, defaultMedia);
-  const fit = Math.min(canvasWidth / sourceWidth, canvasHeight / sourceHeight) * media.scale / 100;
-  const contentWidth = Math.max(2, Math.round(sourceWidth * fit));
-  const contentHeight = Math.max(2, Math.round(sourceHeight * fit));
+  const contentFit = media.contentFit ?? 'contain';
+  const baseFrameSize = contentFit === 'contain'
+    ? getFittedMediaSize(canvasWidth, canvasHeight, sourceWidth, sourceHeight, media.scale)
+    : getCanvasMediaSize(canvasWidth, canvasHeight, media.scale);
+  const frameSize = applyMediaOuterPadding(baseFrameSize, media.outerPaddingX, media.outerPaddingY);
+  const frameWidth = frameSize.width;
+  const frameHeight = frameSize.height;
   const appearance = getFrameAppearance(visual.frameStyle, visual.borderOpacity, visual.borderWidth, visual.borderColor);
   const padding = typeof appearance.padding === 'number' ? appearance.padding : 0;
-  const frameWidth = contentWidth + padding * 2;
-  const frameHeight = contentHeight + padding * 2;
+  const contentWidth = Math.max(2, baseFrameSize.width - padding * 2);
+  const contentHeight = Math.max(2, baseFrameSize.height - padding * 2);
   const trimBefore = Math.round(clip.sourceStartMs / 1000 * fps);
   const playbackRate = getPlaybackRate(clip) * sceneSpeed;
   const durationInFrames = Math.max(1, Math.round(getClipDurationMs(clip) / 1000 * fps / sceneSpeed));
@@ -193,13 +194,14 @@ function RecordingClipSequence({ clip, src, canvasWidth, canvasHeight, sourceWid
   const playableDurationInFrames = Math.max(1, Math.round(playableDurationMs / 1000 * fps / sceneSpeed));
   const frozenDurationInFrames = Math.max(0, durationInFrames - playableDurationInFrames);
   const from = Math.round(clip.timelineStartMs / 1000 * fps / sceneSpeed);
-  const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'relative', width: contentWidth, height: contentHeight, overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
+  const surface = (mediaNode: ReactNode) => <div style={{ position: 'absolute', width: frameWidth, height: frameHeight, left: `${media.positionX}%`, top: `${media.positionY}%`, transform: 'translate(-50%, -50%)', boxShadow: getShadow(visual.shadowStyle, visual.shadowOpacity, background, visual.shadowLightX, visual.shadowLightY), borderRadius: visual.borderShape === 'sharp' ? 0 : visual.cornerRadius }}><Shape shape={visual.borderShape} width={frameWidth} height={frameHeight} radius={visual.cornerRadius} smoothing={visual.cornerSmoothing} style={{ ...appearance, boxSizing: 'border-box', position: 'relative', width: frameWidth, height: frameHeight, overflow: 'hidden' }}><div style={{ position: 'absolute', width: contentWidth, height: contentHeight, left: '50%', top: '50%', transform: 'translate(-50%, -50%)', overflow: 'hidden', borderRadius: visual.borderShape === 'rounded' ? Math.max(0, visual.cornerRadius - padding) : 0 }}>{mediaNode}</div></Shape></div>;
   const volume = (clip.volume ?? 100) / 100;
   const videoStyle: CSSProperties = {
     width: '100%',
     height: '100%',
-    objectFit: 'fill',
-    transform: `scaleX(${media.flipHorizontal ? -1 : 1}) scaleY(${media.flipVertical ? -1 : 1})`,
+    objectFit: contentFit,
+    transform: `scale(${Math.max(10, media.contentScale ?? 100) / 100}) scaleX(${media.flipHorizontal ? -1 : 1}) scaleY(${media.flipVertical ? -1 : 1})`,
+    transformOrigin: 'center',
   };
 
   return <>

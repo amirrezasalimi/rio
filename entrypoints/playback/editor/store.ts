@@ -76,7 +76,7 @@ export const useEditorStore = create<EditorStore>((set) => ({
   setShadowLight: (shadowLightX, shadowLightY) => set({ shadowLightX, shadowLightY }),
   updateBackground: (patch) => set((state) => ({ background: { ...state.background, ...patch } })),
   updateMedia: (patch) => set((state) => ({ media: { ...state.media, ...patch } })),
-  resetMedia: () => set({ media: { scale: 86, positionX: 50, positionY: 50, flipHorizontal: false, flipVertical: false } }),
+  resetMedia: () => set({ media: { scale: 86, positionX: 50, positionY: 50, contentFit: 'contain', contentScale: 100, outerPaddingX: 0, outerPaddingY: 0, flipHorizontal: false, flipVertical: false } }),
   setCanvasRatio: (ratio) => {
     if (ratio === 'custom') return set((state) => ({ canvas: { ...state.canvas, ratio } }));
     set({ canvas: { ratio, ...CANVAS_SIZES[ratio] } });

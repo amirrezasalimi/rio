@@ -53,7 +53,7 @@ function App() {
     return {
       sessionId: query.get('sessionId') ?? '',
       targetTabId: Number(query.get('targetTabId')),
-      crop: serializedCrop ? JSON.parse(serializedCrop) as CropArea : undefined,
+      crop: mode === 'region' && serializedCrop ? JSON.parse(serializedCrop) as CropArea : undefined,
       options: {
         mode,
         microphone: query.get('microphone') === 'true',
@@ -107,7 +107,7 @@ function App() {
         capture.options,
         request.sourceAudioAllowed,
         request.source,
-        capture.crop,
+        capture.options.mode === 'region' ? capture.crop : undefined,
         webcamStreamRef.current,
       );
     };

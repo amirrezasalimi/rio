@@ -203,6 +203,10 @@ export interface MediaTransform {
   scale: number;
   positionX: number;
   positionY: number;
+  contentFit?: MediaContentFit;
+  contentScale?: number;
+  outerPaddingX?: number;
+  outerPaddingY?: number;
   flipHorizontal?: boolean;
   flipVertical?: boolean;
 }
@@ -375,6 +379,33 @@ export function getClipMediaTransform(clip: EditorClip, fallback: MediaTransform
   return clip.media ?? fallback;
 }
 
+export function getCanvasMediaSize(canvasWidth: number, canvasHeight: number, scale: number): { width: number; height: number } {
+  const safeScale = Math.max(0, scale) / 100;
+  return {
+    width: Math.max(2, canvasWidth * safeScale),
+    height: Math.max(2, canvasHeight * safeScale),
+  };
+}
+
+export function applyMediaOuterPadding(size: { width: number; height: number }, paddingX = 0, paddingY = 0): { width: number; height: number } {
+  return {
+    width: Math.max(2, size.width + Math.max(-64, Math.min(64, paddingX)) * 2),
+    height: Math.max(2, size.height + Math.max(-64, Math.min(64, paddingY)) * 2),
+  };
+}
+
+export function getFittedMediaSize(canvasWidth: number, canvasHeight: number, sourceWidth: number, sourceHeight: number, scale: number, targetRatio = sourceWidth / Math.max(1, sourceHeight)): { width: number; height: number } {
+  const safeSourceWidth = Math.max(1, sourceWidth);
+  const safeSourceHeight = Math.max(1, sourceHeight);
+  const safeRatio = Math.max(0.01, targetRatio);
+  const fit = Math.min(canvasWidth / safeSourceWidth, canvasHeight / safeSourceHeight) * Math.max(0, scale) / 100;
+  const fittedWidth = Math.max(2, safeSourceWidth * fit);
+  const fittedHeight = Math.max(2, safeSourceHeight * fit);
+  return safeRatio >= safeSourceWidth / safeSourceHeight
+    ? { width: fittedWidth, height: Math.max(2, fittedWidth / safeRatio) }
+    : { width: Math.max(2, fittedHeight * safeRatio), height: fittedHeight };
+}
+
 export function getPlaybackRate(item: { playbackRate?: number }): number {
   return Math.max(0.25, Math.min(4, item.playbackRate ?? 1));
 }
@@ -486,7 +517,7 @@ export function createInitialSettings(durationMs: number): EditorSettings {
       scale: 100, positionX: 50, positionY: 50, blur: 0, noise: 0, noiseType: 'grain',
       meshPoints: createDefaultMeshPoints(),
     },
-    media: { scale: 86, positionX: 50, positionY: 50, flipHorizontal: false, flipVertical: false },
+    media: { scale: 86, positionX: 50, positionY: 50, contentFit: 'contain', contentScale: 100, outerPaddingX: 0, outerPaddingY: 0, flipHorizontal: false, flipVertical: false },
     canvas: { ratio: '16:9', ...CANVAS_SIZES['16:9'] },
     sceneSpeed: 1,
   };
